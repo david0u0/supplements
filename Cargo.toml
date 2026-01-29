@@ -1,0 +1,10 @@
+[package]
+name = "supplements"
+version = "0.1.0"
+authors = ["why8ther <lturtsamuel@gmail.com>"]
+edition = "2024"
+license = "MIT OR Apache-2.0"
+categories = ["command-line-utilities"]
+description = "The awesome supplement for your awesome command-line tool"
+
+[dependencies]
