@@ -200,3 +200,23 @@ fn test_flags_not_last() {
 
     //run("-bc=abcd sub", true); TODO: test error handle
 }
+
+#[test]
+fn test_once_flag() {
+    let (h, r) = run("--", false);
+    assert_eq!(h.into_inner(), vec![cmd!(Root)]);
+    assert_eq!(
+        r,
+        vec![
+            CompResult::new("--long-b", "test description for flag B"),
+            CompResult::new("--long-c", "test description for flag C")
+        ]
+    );
+
+    let (h, r) = run("-b option --", false);
+    assert_eq!(h.into_inner(), vec![cmd!(Root), flag!(BFlag, "option")]);
+    assert_eq!(
+        r,
+        vec![CompResult::new("--long-c", "test description for flag C")]
+    );
+}
