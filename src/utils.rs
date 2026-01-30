@@ -180,6 +180,7 @@ impl Command {
                     } else {
                         if flag.comp_options.is_some() {
                             if equal.is_some() {
+                                println!("{:?}", ParsedFlag::new(&arg));
                                 // e.g. git commit -ma=abcd
                                 unimplemented!();
                             }
@@ -208,6 +209,7 @@ impl Command {
 
         match ParsedFlag::new(&arg) {
             ParsedFlag::Empty => {
+                // TODO: error if empty?
                 let cmd_iter = self.commands.iter().map(|c| CompResult {
                     value: c.info.name.to_string(),
                     description: c.info.description.to_string(),
@@ -245,7 +247,7 @@ impl Command {
         args: &mut Peekable<impl Iterator<Item = String>>,
         arg: String,
     ) -> Vec<CompResult> {
-        let mut args = args.chain(once(arg)).peekable();
+        let mut args = once(arg).chain(args).peekable();
         for arg_obj in self.args.iter() {
             let res = arg_obj.supplement(history, &mut args);
             if let Some(res) = res {

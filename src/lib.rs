@@ -13,7 +13,7 @@ impl SupplementID {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct CompResult {
     value: String,
     description: String,
