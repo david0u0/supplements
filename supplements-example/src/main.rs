@@ -4,9 +4,9 @@ mod def {
 
 struct Dummy;
 
-impl def::FlagThisTest for Dummy {}
+impl def::FlagYetAnotherTest for Dummy {}
 impl def::Cmd for Dummy {
-    type IFlagThisTest = Dummy;
+    type IFlagYetAnotherTest = Dummy;
 }
 
 fn main() {

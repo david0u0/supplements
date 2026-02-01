@@ -42,20 +42,24 @@ impl History {
     }
 
     pub fn push_arg(&mut self, id: id::Arg, value: String) {
+        log::debug!("push arg {:?} {}", id, value);
         self.0
             .push(SingleHistory::Arg(SingleHistoryArg { id, value }));
     }
     pub fn push_flag(&mut self, id: id::Flag, value: String) {
+        log::debug!("push flag {:?}: {}", id, value);
         self.0
             .push(SingleHistory::Flag(SingleHistoryFlag { id, value }));
     }
     pub fn push_pure_flag(&mut self, id: id::Flag) {
+        log::debug!("push pure flag {:?}", id);
         self.0.push(SingleHistory::Flag(SingleHistoryFlag {
             id,
             value: String::new(),
         }));
     }
     pub fn push_command(&mut self, id: id::Command) {
+        log::debug!("push command {:?}", id);
         self.0
             .push(SingleHistory::Command(SingleHistoryCommand(id)));
     }

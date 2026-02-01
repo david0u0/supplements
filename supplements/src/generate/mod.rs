@@ -80,15 +80,30 @@ where
     }
 }
 
-struct PossibleValueDisplay<'a>(&'a PossibleValue);
-impl<'a> std::fmt::Display for PossibleValueDisplay<'a> {
+struct CompOptionDisplay<'a>(&'a [PossibleValue]);
+impl<'a> std::fmt::Display for CompOptionDisplay<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "Completion::new(\"{}\", \"{}\")",
-            self.0.get_name(),
-            self.0.get_help().unwrap_or_default()
-        )
+        if self.0.is_empty() {
+            write!(f, "None")?;
+        } else {
+            write!(f, "Some(|_, _| vec![")?;
+            let mut first = true;
+            for p in self.0.iter() {
+                if first {
+                    first = false;
+                } else {
+                    write!(f, ", ")?;
+                }
+                write!(
+                    f,
+                    "Completion::new(\"{}\", \"{}\")",
+                    p.get_name(),
+                    p.get_help().unwrap_or_default()
+                )?
+            }
+            write!(f, "])")?;
+        }
+        Ok(())
     }
 }
 
@@ -116,24 +131,20 @@ fn generate_flags_in_cmd(
 
         let description = utils::escape_help(flag.get_help().unwrap_or_default());
 
-        let rust_name = gen_rust_name(NameType::FLAG, &name, !takes_values);
         let shorts = JoinQuotes(shorts.iter(), Some('\''));
         let longs = JoinQuotes(longs.iter(), Some('\"'));
+        let possible_values = flag.get_possible_values();
+        let has_possible_values = !possible_values.is_empty();
 
-        if takes_values {
-            let possible_values = flag.get_possible_values();
-            let possible_values = JoinQuotes(
-                possible_values.iter().map(|p| PossibleValueDisplay(p)),
-                None,
-            );
-
-            flag_names.push((false, rust_name.clone()));
+        let is_const = !takes_values || has_possible_values;
+        let rust_name = gen_rust_name(NameType::FLAG, &name, is_const);
+        if !is_const {
             writeln!(
                 w,
                 "\
 {indent}pub trait {rust_name} {{
 {indent}    fn comp_options(_history: &History, _arg: &str) -> Vec<Completion> {{
-{indent}        vec![{possible_values}]
+{indent}        vec![]
 {indent}    }}
 {indent}    fn id() -> id::Flag {{
 {indent}        id::Flag::new(line!(), \"{name}\")
@@ -141,7 +152,7 @@ fn generate_flags_in_cmd(
 {indent}    fn generate() -> Flag {{
 {indent}        Flag {{
 {indent}            id: Self::id(),
-{indent}            info: FlagInfo {{
+{indent}            info: info::FlagInfo {{
 {indent}                short: &[{shorts}],
 {indent}                long: &[{longs}],
 {indent}                description: \"{description}\",
@@ -153,22 +164,23 @@ fn generate_flags_in_cmd(
 {indent}}}"
             )?;
         } else {
-            flag_names.push((true, rust_name.clone()));
+            let comp_options = CompOptionDisplay(&possible_values);
             writeln!(
                 w,
                 "\
 {indent}pub const {rust_name}: Flag = Flag {{
 {indent}    id: id::Flag::new(line!(), \"{name}\"),
-{indent}    info: FlagInfo {{
+{indent}    info: info::FlagInfo {{
 {indent}        short: &[{shorts}],
 {indent}        long: &[{longs}],
 {indent}        description: \"{description}\",
 {indent}    }},
-{indent}    comp_options: None,
+{indent}    comp_options: {comp_options},
 {indent}    once: {once},
 {indent}}};"
             )?;
         }
+        flag_names.push((is_const, rust_name.clone()));
     }
     Ok(flag_names)
 }
@@ -216,7 +228,7 @@ fn generate_recur(indent: &str, cmd: &Command, w: &mut impl Write) -> std::io::R
 {indent}        Command {{
 {indent}            id: Self::id(),
 {indent}            all_flags: vec![{flags}],
-{indent}            info: CommandInfo {{
+{indent}            info: info::CommandInfo {{
 {indent}                name: \"{name}\",
 {indent}                description: \"{description}\",
 {indent}            }},

@@ -5,15 +5,18 @@ use crate::id;
 use crate::parsed_flag::ParsedFlag;
 use crate::{Completion, History, Result};
 
-pub struct FlagInfo {
-    pub short: &'static [char],
-    pub long: &'static [&'static str],
-    pub description: &'static str,
+pub mod info {
+    pub struct FlagInfo {
+        pub short: &'static [char],
+        pub long: &'static [&'static str],
+        pub description: &'static str,
+    }
+    pub struct CommandInfo {
+        pub name: &'static str,
+        pub description: &'static str,
+    }
 }
-pub struct CommandInfo {
-    pub name: &'static str,
-    pub description: &'static str,
-}
+use info::*;
 
 pub struct Flag {
     pub id: id::Flag,
@@ -236,9 +239,8 @@ impl Command {
     }
 
     fn supplement_last(&self, history: &mut History, arg: String) -> Result<Vec<Completion>> {
-        let ret = match ParsedFlag::new(&arg)? {
-            ParsedFlag::Empty => {
-                // TODO: error if both empty?
+        let ret: Vec<_> = match ParsedFlag::new(&arg)? {
+            ParsedFlag::Empty | ParsedFlag::NotFlag => {
                 let cmd_iter = self.commands.iter().map(|c| Completion {
                     value: c.info.name.to_string(),
                     description: c.info.description.to_string(),
@@ -262,6 +264,9 @@ impl Command {
                 .collect(),
             _ => unimplemented!(),
         };
+        if ret.is_empty() {
+            return Err(Error::NoPossibleCompletion);
+        }
         Ok(ret)
     }
     fn supplement_args(

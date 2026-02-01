@@ -12,7 +12,7 @@ pub(crate) mod parsed_flag;
 
 pub type Result<T = ()> = std::result::Result<T, error::Error>;
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct Completion {
     pub value: String,
     pub description: String,

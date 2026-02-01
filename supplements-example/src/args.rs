@@ -13,4 +13,6 @@ pub struct Root {
     pub this_test: Option<ThisTest>,
     #[clap(short = 'a', long)]
     pub another_test: bool,
+    #[clap(short = 'y', long)]
+    pub yet_another_test: u32,
 }
