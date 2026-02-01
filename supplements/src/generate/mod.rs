@@ -6,6 +6,7 @@ mod utils;
 
 pub fn generate(cmd: &mut Command, w: &mut impl Write) -> std::io::Result<()> {
     cmd.build();
+
     generate_recur("", cmd, w)
 }
 
@@ -13,19 +14,30 @@ struct NameType(&'static str);
 impl NameType {
     const FLAG: Self = NameType("Flag");
     const ARG: Self = NameType("Arg");
-    const COMMAND: Self = NameType("Command");
+    const COMMAND: Self = NameType("Cmd");
 }
 
 fn to_pascal_case(s: &str) -> String {
-    s.to_string() // TODO
+    let mut ret = String::new();
+    for s in to_snake_case(s).split('_') {
+        let mut chars = s.chars();
+        match chars.next() {
+            None => continue,
+            Some(first) => {
+                ret += &first.to_uppercase().to_string();
+                ret += &(chars.collect::<String>());
+            }
+        }
+    }
+    ret
 }
 
 fn to_snake_case(s: &str) -> String {
-    s.to_string() // TODO
+    s.replace('-', "_") // TODO
 }
 
 fn to_screaming_snake_case(s: &str) -> String {
-    s.to_string() // TODO
+    s.replace('-', "_").to_uppercase() // TODO
 }
 
 fn gen_rust_name(ty: NameType, name: &str, is_const: bool) -> String {
@@ -149,7 +161,7 @@ fn generate_flags_in_cmd(
                 w,
                 "\
 {indent}pub const {rust_name}: Flag = Flag {{
-{indent}    id: Self::id(),
+{indent}    id: id::Flag::new(line!(), \"{name}\"),
 {indent}    info: FlagInfo {{
 {indent}        short: &[{shorts}],
 {indent}        long: &[{longs}],
@@ -157,7 +169,7 @@ fn generate_flags_in_cmd(
 {indent}    }},
 {indent}    comp_options: None,
 {indent}    once: {once},
-{indent}}}"
+{indent}}};"
             )?;
         }
     }
@@ -169,10 +181,12 @@ fn generate_recur(indent: &str, cmd: &Command, w: &mut impl Write) -> std::io::R
     writeln!(w, "{indent}pub mod {} {{", to_snake_case(cmd.get_name()))?;
     {
         let indent = format!("    {indent}");
+        writeln!(w, "{indent}use supplements::*;")?;
+
         let flags = generate_flags_in_cmd(&indent, cmd, w)?;
 
         let rust_name = NameType::COMMAND.0;
-        writeln!(w, "{indent}pub trait {rust_name}")?;
+        writeln!(w, "{indent}pub trait {rust_name} {{")?;
 
         for (is_const, flag) in flags.iter() {
             if *is_const {
@@ -204,8 +218,8 @@ fn generate_recur(indent: &str, cmd: &Command, w: &mut impl Write) -> std::io::R
 {indent}                name: \"{name}\",
 {indent}                description: \"{description}\",
 {indent}            }},
-{indent}            args: vec![TODO],
-{indent}            commands: vec![TODO],
+{indent}            args: vec![/*TODO*/],
+{indent}            commands: vec![/*TODO*/],
 {indent}        }}
 {indent}    }}
 {indent}}}"

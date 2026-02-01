@@ -29,7 +29,7 @@ pub struct Arg {
 pub struct Command {
     pub id: id::Command,
     pub info: CommandInfo,
-    pub true_flags: Vec<Flag>,
+    pub all_flags: Vec<Flag>,
     pub args: Vec<Arg>,
     pub commands: Vec<Command>,
 }
@@ -99,9 +99,11 @@ impl Command {
     pub fn supplement_with_history(
         &self,
         history: &mut History,
-        args: impl Iterator<Item = String>,
+        mut args: impl Iterator<Item = String>,
         last_is_empty: bool,
     ) -> Result<Vec<Completion>> {
+        args.next(); // ignore the first arg which is the program's name
+
         let last_arg = if last_is_empty {
             Some(String::new())
         } else {
@@ -117,7 +119,7 @@ impl Command {
     }
 
     fn flags(&self, history: &History) -> impl Iterator<Item = &Flag> {
-        self.true_flags.iter().filter(|f| {
+        self.all_flags.iter().filter(|f| {
             if !f.once {
                 true
             } else {

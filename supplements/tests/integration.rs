@@ -63,7 +63,7 @@ mod def {
         fn generate() -> Command {
             Command {
                 id: Self::id(),
-                true_flags: vec![Self::B::generate(), C_FLAG],
+                all_flags: vec![Self::B::generate(), C_FLAG],
                 info: CommandInfo {
                     name: "root",
                     description: "",
@@ -84,7 +84,7 @@ mod def {
         fn generate() -> Command {
             Command {
                 id: Self::id(),
-                true_flags: vec![Self::B::generate()],
+                all_flags: vec![Self::B::generate()],
                 info: CommandInfo {
                     name: "sub",
                     description: "test sub description",
