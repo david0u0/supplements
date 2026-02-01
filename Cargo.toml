@@ -9,7 +9,8 @@ description = "The awesome supplement for your awesome command-line tool"
 
 [dependencies]
 log = '*'
-clap = '4'
+clap = { version = "4" } # FIXME: shouldn't use derive
 
 [dev-dependencies]
 env_logger = '*'
+clap = { version = "4", features = ["derive"] }

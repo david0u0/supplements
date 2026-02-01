@@ -3,7 +3,7 @@ use std::iter::{Peekable, once};
 use crate::error::Error;
 use crate::id;
 use crate::parsed_flag::ParsedFlag;
-use crate::{Completion, Either, History, Result};
+use crate::{Completion, History, Result};
 
 pub struct FlagInfo {
     pub short: &'static [char],
@@ -53,19 +53,18 @@ impl Arg {
 
 impl Flag {
     fn gen_completion(&self, is_long: Option<bool>) -> impl Iterator<Item = Completion> {
-        let iter_long = self.info.long.iter().map(|t| Either::A(t));
-        let iter_short = self.info.short.iter().map(|t| Either::B(t));
-        let iter = iter_long.chain(iter_short);
-
-        iter.filter_map(move |t| match t {
-            Either::A(l) if is_long != Some(false) => {
-                Some(Completion::new(&format!("--{l}"), self.info.description))
-            }
-            Either::B(s) if is_long != Some(true) => {
-                Some(Completion::new(&format!("-{s}"), self.info.description))
-            }
-            _ => None,
-        })
+        let (long, short) = match is_long {
+            None => (self.info.long, self.info.short),
+            Some(true) => (self.info.long, &[] as &[char]),
+            Some(false) => (&[] as &[&str], self.info.short),
+        };
+        long.iter()
+            .map(|l| Completion::new(&format!("--{l}"), self.info.description))
+            .chain(
+                short
+                    .iter()
+                    .map(|s| Completion::new(&format!("-{s}"), self.info.description)),
+            )
     }
     fn supplement(
         &self,

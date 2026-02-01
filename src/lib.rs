@@ -12,11 +12,6 @@ pub(crate) mod parsed_flag;
 
 pub type Result<T = ()> = std::result::Result<T, error::Error>;
 
-enum Either<A, B> {
-    A(A),
-    B(B),
-}
-
 #[derive(Debug, Eq, PartialEq)]
 pub struct Completion {
     pub value: String,
