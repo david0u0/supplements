@@ -5,5 +5,5 @@ pub(super) fn flags(p: &Command) -> impl Iterator<Item = &Arg> {
 }
 
 pub(super) fn escape_help(help: &StyledStr) -> String {
-    help.to_string().replace('\n', " ")
+    help.to_string().replace('\n', " ").replace('"', "\\\"")
 }

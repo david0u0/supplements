@@ -1,9 +1,16 @@
-use clap::{CommandFactory, Parser};
+use clap::{CommandFactory, Parser, ValueEnum};
+
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum, Debug)]
+enum ThisTest {
+    #[clap(help = "help for p1")]
+    P1,
+    P2,
+}
 
 #[derive(Parser, Debug)]
-pub struct Root {
-    #[clap(short = 't', long)]
-    pub this_test: Option<String>,
+struct Root {
+    #[clap(short = 't', long, help = "help for \"t\"")]
+    pub this_test: Option<ThisTest>,
     #[clap(short = 'a', long)]
     pub another_test: bool,
 }
