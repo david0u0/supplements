@@ -6,25 +6,16 @@ mod def {
     include!(concat!(env!("OUT_DIR"), "/definition.rs"));
 }
 
-struct Dummy;
+use def::Supplements;
 
-impl def::FlagYetAnotherTest for Dummy {}
-impl def::Cmd for Dummy {
-    type IFlagYetAnotherTest = Dummy;
-    type ICmdSub1 = Dummy;
-    type ICmdSub2 = Dummy;
-}
-impl def::sub1::Cmd for Dummy {}
-impl def::sub2::ArgSubTest for Dummy {
+impl def::FlagYetAnotherTest for Supplements {}
+impl def::sub2::ArgSubTest for Supplements {
     fn comp_options(_history: &History, _arg: &str) -> Vec<Completion> {
         vec![
             Completion::new("arg-value-1", ""),
             Completion::new("arg-value-2", ""),
         ]
     }
-}
-impl def::sub2::Cmd for Dummy {
-    type IArgSubTest = Dummy;
 }
 
 fn main() {
@@ -47,6 +38,6 @@ fn main() {
         return;
     }
 
-    let res = <Dummy as def::Cmd>::generate().supplement(args.into_iter(), false);
+    let res = def::get_cmd().supplement(args.into_iter(), false);
     println!("{:?}", res);
 }

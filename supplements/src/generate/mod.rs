@@ -10,14 +10,15 @@ mod utils;
 pub fn generate(cmd: &mut Command, w: &mut impl Write) -> std::io::Result<()> {
     cmd.build();
 
-    generate_recur(true, "", cmd, w)
+    writeln!(w, "pub struct Supplements;")?;
+    generate_recur(0, "", cmd, w)
 }
 
 struct NameType(&'static str);
 impl NameType {
     const FLAG: Self = NameType("Flag");
     const ARG: Self = NameType("Arg");
-    const COMMAND: Self = NameType("Cmd");
+    const COMMAND: Self = NameType("get_cmd");
 }
 impl std::fmt::Display for NameType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -234,103 +235,83 @@ fn generate_flags_in_cmd(
     Ok(flag_names)
 }
 
-fn generate_subcmd_names(cmd: &Command) -> impl Iterator<Item = (String, String)> {
-    utils::non_help_subcmd(cmd).map(|c| {
-        let name = c.get_name();
-        let ty_name = format!("I{}{}", NameType::COMMAND, to_pascal_case(name));
-        (to_snake_case(name), ty_name)
-    })
+fn generate_subcmd_names(cmd: &Command) -> impl Iterator<Item = String> {
+    utils::non_help_subcmd(cmd).map(|c| to_snake_case(c.get_name()))
 }
 
 fn generate_recur(
-    first: bool,
+    level: usize,
     indent: &str,
     cmd: &Command,
     w: &mut impl Write,
 ) -> std::io::Result<()> {
     let name = cmd.get_name();
     let description = utils::escape_help(cmd.get_about().unwrap_or_default());
-    if !first {
+    if level > 0 {
         writeln!(w, "{indent}pub mod {} {{", to_snake_case(cmd.get_name()))?;
     } // else: it's the first time, don't need a mod
 
     {
-        // TODO: if everything (flag, arg, command) inside `cmd` is const, `cmd` can as well be const
-
         let inner_indent = format!("    {indent}");
-        let indent = if !first { &inner_indent } else { indent };
+        let indent = if level > 0 { &inner_indent } else { indent };
 
+        if level > 0 {
+            let pre = "super::".repeat(level);
+            writeln!(w, "{indent}use {pre}Supplements;")?;
+        }
         writeln!(w, "{indent}use supplements::*;")?;
 
         let flags = generate_flags_in_cmd(&indent, cmd, w)?;
         let args = generate_args_in_cmd(&indent, cmd, w)?;
 
         let rust_name = NameType::COMMAND;
-        writeln!(w, "{indent}pub trait {rust_name} {{")?;
 
-        for arg in args.iter() {
-            writeln!(w, "{indent}    type I{arg}: {arg};")?;
-        }
-        for (is_const, flag) in flags.iter() {
-            if *is_const {
-                continue;
-            }
-            writeln!(w, "{indent}    type I{flag}: {flag};")?;
-        }
-
-        let args = JoinQuotes(None, args.iter().map(|a| format!("Self::I{a}::generate()")));
+        let args = JoinQuotes(
+            None,
+            args.iter()
+                .map(|a| format!("<Supplements as {a}>::generate()")),
+        );
         let flags = JoinQuotes(
             None,
             flags.iter().map(|(is_const, f)| {
                 if *is_const {
                     Cow::Borrowed(f)
                 } else {
-                    Cow::Owned(format!("Self::I{f}::generate()"))
+                    Cow::Owned(format!("<Supplements as {f}>::generate()"))
                 }
             }),
         );
 
         let sub_cmds: Vec<_> = generate_subcmd_names(cmd).collect();
-        for (mod_name, ty_name) in sub_cmds.iter() {
-            writeln!(
-                w,
-                "{indent}    type {ty_name}: {mod_name}::{};",
-                NameType::COMMAND
-            )?;
-        }
         let sub_cmds = JoinQuotes(
             None,
             sub_cmds
                 .iter()
-                .map(|(m, c)| format!("<Self::{c} as {m}::{}>::generate()", NameType::COMMAND)),
+                .map(|m| format!("{m}::{}()", NameType::COMMAND)),
         );
 
         writeln!(
             w,
             "\
-{indent}    fn id() -> id::Command {{
-{indent}        id::Command::new(line!(), \"{name}\")
-{indent}    }}
-{indent}    fn generate() -> Command {{
-{indent}        Command {{
-{indent}            id: Self::id(),
-{indent}            info: info::CommandInfo {{
-{indent}                name: \"{name}\",
-{indent}                description: \"{description}\",
-{indent}            }},
-{indent}            all_flags: vec![{flags}],
-{indent}            args: vec![{args}],
-{indent}            commands: vec![{sub_cmds}],
-{indent}        }}
+{indent}pub fn {rust_name}() -> Command {{
+{indent}    Command {{
+{indent}        id: id::Command::new(line!(), \"{name}\"),
+{indent}        info: info::CommandInfo {{
+{indent}            name: \"{name}\",
+{indent}            description: \"{description}\",
+{indent}        }},
+{indent}        all_flags: vec![{flags}],
+{indent}        args: vec![{args}],
+{indent}        commands: vec![{sub_cmds}],
 {indent}    }}
 {indent}}}"
         )?;
 
         for sub_cmd in utils::non_help_subcmd(cmd) {
-            generate_recur(false, &indent, sub_cmd, w)?;
+            generate_recur(level + 1, &indent, sub_cmd, w)?;
         }
     }
-    if !first {
+    if level > 0 {
         writeln!(w, "{indent}}}")?;
     }
     Ok(())

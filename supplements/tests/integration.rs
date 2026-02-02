@@ -302,8 +302,5 @@ fn test_flags_supplement() {
 fn test_fall_back_arg() {
     let (h, r) = run("arg1", true);
     assert_eq!(h, vec![cmd!(Root), arg!(AArg, "arg1")].into());
-    assert_eq!(
-        map_comp_values(&r),
-        vec!["d-arg!"]
-    );
+    assert_eq!(map_comp_values(&r), vec!["d-arg!"]);
 }
