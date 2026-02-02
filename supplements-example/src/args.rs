@@ -10,9 +10,21 @@ pub enum ThisTest {
 #[derive(Parser, Debug)]
 pub struct Root {
     #[clap(short = 't', long, help = "help for \"t\"")]
-    pub this_test: Option<ThisTest>,
+    pub this_test: Vec<ThisTest>,
     #[clap(short = 'a', long)]
     pub another_test: bool,
-    #[clap(short = 'y', long)]
+    #[clap(short = 'y', long, overrides_with = "yet_another_test")]
     pub yet_another_test: u32,
+
+    #[clap(subcommand)]
+    pub sub: Option<SubCommand>,
+}
+
+#[derive(Parser, Debug)]
+pub enum SubCommand {
+    Sub1 {
+        #[clap(short = 's', long, help = "help for \"s\"")]
+        sub_test: Option<ThisTest>,
+    },
+    Sub2,
 }
