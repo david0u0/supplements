@@ -258,3 +258,22 @@ fn test_flags_last() {
     assert_eq!(expected_h, h);
     assert_eq!(map_comp_values(&r), vec!["-cb", "-cx"]);
 }
+
+#[test]
+fn test_flags_supplement() {
+    let expected = (
+        vec![cmd!(Root), b_flag!(C_FLAG)].into(),
+        <Dummy as def::BFlag>::comp_options(&Default::default(), "x"),
+    );
+
+    let res = run("-c --long-b x", false);
+    assert_eq!(expected, res);
+    let res = run("-c -b x", false);
+    assert_eq!(expected, res);
+    let res = run("-cb x", false);
+    assert_eq!(expected, res);
+
+    let res = run("-c x", false);
+    assert_eq!(expected.0, res.0);
+    assert_eq!(map_comp_values(&res.1), vec!["sub"]);
+}
