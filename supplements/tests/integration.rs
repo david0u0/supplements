@@ -16,11 +16,13 @@ mod def {
         once: true,
     };
     pub trait BFlag {
-        fn comp_options(_history: &History, _arg: &str) -> Vec<Completion> {
-            vec![
-                Completion::new("flag-option1", "description of option1"),
-                Completion::new("flag-option2", "description of option2"),
-            ]
+        fn comp_options(_history: &History, arg: &str) -> Vec<Completion> {
+            let mut ret = vec![];
+            if arg != "" {
+                ret.push(Completion::new(arg, ""));
+            }
+            ret.push(Completion::new(&format!("{arg}!"), ""));
+            ret
         }
         fn id() -> id::Flag {
             id::Flag::new(line!(), "long-b")
@@ -226,4 +228,29 @@ fn test_once_flag() {
     let (h, r) = run("-b option -", false);
     assert_eq!(h.into_inner(), vec![cmd!(Root), flag!(BFlag, "option")]);
     assert_eq!(map_comp_values(&r), vec!["--long-c", "--long-c-2", "-c"],);
+}
+
+#[test]
+fn test_flags_last() {
+    let expected_h: History = vec![cmd!(Root), b_flag!(C_FLAG)].into();
+
+    let (h, r) = run("-c --long-b=x", false);
+    assert_eq!(expected_h, h);
+    assert_eq!(map_comp_values(&r), vec!["--long-b=x", "--long-b=x!"]);
+
+    let (h, r) = run("-c -b=x", false);
+    assert_eq!(expected_h, h);
+    assert_eq!(map_comp_values(&r), vec!["-b=x", "-b=x!"]);
+
+    let (h, r) = run("-cb=x", false);
+    assert_eq!(expected_h, h);
+    assert_eq!(map_comp_values(&r), vec!["-cb=x", "-cb=x!"]);
+
+    let (h, r) = run("-cbx", false);
+    assert_eq!(expected_h, h);
+    assert_eq!(map_comp_values(&r), vec!["-cbx", "-cbx!"]);
+
+    let (h, r) = run("-cb", false);
+    assert_eq!(expected_h, h);
+    assert_eq!(map_comp_values(&r), vec!["-cb!"]);
 }
