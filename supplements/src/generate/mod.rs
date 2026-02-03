@@ -65,25 +65,21 @@ fn gen_rust_name(ty: NameType, name: &str, is_const: bool) -> String {
     ret
 }
 
-struct JoinQuotes<I>(Option<char>, I);
-impl<T, I> std::fmt::Display for JoinQuotes<I>
+struct Join<I>(I);
+impl<T, I> std::fmt::Display for Join<I>
 where
     T: std::fmt::Display,
     I: Iterator<Item = T> + Clone,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut first = true;
-        for t in self.1.clone() {
+        for t in self.0.clone() {
             if first {
                 first = false;
             } else {
                 write!(f, ", ")?;
             }
-            if let Some(quote) = self.0 {
-                write!(f, "{}{}{}", quote, t, quote)?;
-            } else {
-                write!(f, "{t}")?;
-            }
+            write!(f, "{t}")?;
         }
         Ok(())
     }
@@ -181,8 +177,8 @@ fn generate_flags_in_cmd(
         };
         let description = utils::escape_help(flag.get_help().unwrap_or_default());
 
-        let shorts = JoinQuotes(Some('\''), shorts.iter());
-        let longs = JoinQuotes(Some('\"'), longs.iter());
+        let shorts = Join(shorts.iter().map(|s| format!("'{s}'")));
+        let longs = Join(longs.iter().map(|s| format!("\"{s}\"")));
         let possible_values = flag.get_possible_values();
         let has_possible_values = !possible_values.is_empty();
 
@@ -261,36 +257,25 @@ fn generate_recur(
 
         let flags = generate_flags_in_cmd(&indent, cmd, w)?;
         let args = generate_args_in_cmd(&indent, cmd, w)?;
-
-        let rust_name = NameType::COMMAND;
-
-        let args = JoinQuotes(
-            None,
-            args.iter().map(|a| format!("<Supplements as {a}>::OBJ")),
-        );
-        let flags = JoinQuotes(
-            None,
-            flags.iter().map(|(is_const, f)| {
-                if *is_const {
-                    Cow::Borrowed(f)
-                } else {
-                    Cow::Owned(format!("<Supplements as {f}>::OBJ"))
-                }
-            }),
-        );
-
         let sub_cmds: Vec<_> = generate_subcmd_names(cmd).collect();
-        let sub_cmds = JoinQuotes(
-            None,
-            sub_cmds
-                .iter()
-                .map(|m| format!("{m}::{}", NameType::COMMAND)),
-        );
+
+        let cmd_name = NameType::COMMAND;
+
+        // TODO: external sub commands
+        let args = Join(args.iter().map(|a| format!("<Supplements as {a}>::OBJ")));
+        let flags = Join(flags.iter().map(|(is_const, f)| {
+            if *is_const {
+                Cow::Borrowed(f)
+            } else {
+                Cow::Owned(format!("<Supplements as {f}>::OBJ"))
+            }
+        }));
+        let sub_cmds = Join(sub_cmds.iter().map(|m| format!("{m}::{cmd_name}")));
 
         writeln!(
             w,
             "\
-{indent}pub const {rust_name}: Command = Command {{
+{indent}pub const {cmd_name}: Command = Command {{
 {indent}    id: id::Command::new(line!(), \"{name}\"),
 {indent}    info: info::CommandInfo {{
 {indent}        name: \"{name}\",
