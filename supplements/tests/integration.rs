@@ -52,6 +52,7 @@ mod def {
             Arg {
                 id: Self::id(),
                 comp_options: Self::comp_options,
+                max_values: 1.try_into().unwrap(),
             }
         }
     }
@@ -66,6 +67,7 @@ mod def {
             Arg {
                 id: Self::id(),
                 comp_options: Self::comp_options,
+                max_values: 1.try_into().unwrap(),
             }
         }
     }

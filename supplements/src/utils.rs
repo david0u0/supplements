@@ -1,4 +1,5 @@
 use std::iter::{Peekable, once};
+use std::num::NonZeroUsize;
 
 use crate::error::Error;
 use crate::id;
@@ -17,7 +18,7 @@ pub struct Flag {
 pub struct Arg {
     pub id: id::Arg,
     pub comp_options: CompOption,
-    // TODO: infinite args?
+    pub max_values: NonZeroUsize,
 }
 pub struct Command {
     pub id: id::Command,
@@ -33,14 +34,20 @@ impl Arg {
         history: &mut History,
         args: &mut Peekable<impl Iterator<Item = String>>,
     ) -> Option<Vec<Completion>> {
-        let value = args.next().unwrap();
-        // TODO: use `ParsedFlag` to check if `value` is valid
-        if args.peek().is_none() {
-            return Some((self.comp_options)(history, &value));
-        }
+        let mut seen = 0;
+        loop {
+            seen += 1;
 
-        history.push_arg(self.id, value);
-        None
+            let value = args.next().unwrap();
+            // TODO: use `ParsedFlag` to check if `value` is valid
+            if args.peek().is_none() {
+                return Some((self.comp_options)(history, &value));
+            }
+            history.push_arg(self.id, value);
+            if seen == self.max_values.get() {
+                break None;
+            }
+        }
     }
 }
 

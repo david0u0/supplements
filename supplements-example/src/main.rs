@@ -9,11 +9,19 @@ mod def {
 use def::Supplements;
 
 impl def::FlagYetAnotherTest for Supplements {}
-impl def::sub2::ArgSubTest for Supplements {
+impl def::sub2::ArgArgTestOpt for Supplements {
     fn comp_options(_history: &History, _arg: &str) -> Vec<Completion> {
         vec![
-            Completion::new("arg-value-1", ""),
-            Completion::new("arg-value-2", ""),
+            Completion::new("opt-value-1", ""),
+            Completion::new("opt-value-2", ""),
+        ]
+    }
+}
+impl def::sub2::ArgArgTestVec for Supplements {
+    fn comp_options(_history: &History, _arg: &str) -> Vec<Completion> {
+        vec![
+            Completion::new("vec-value-1", ""),
+            Completion::new("vec-value-2", ""),
         ]
     }
 }

@@ -127,6 +127,8 @@ fn generate_args_in_cmd(
 
         log::debug!("generating arg {}", name);
 
+        let num_args = arg.get_num_args().expect("built");
+        let max_values = num_args.max_values();
         let rust_name = gen_rust_name(NameType::ARG, &name, false);
 
         writeln!(
@@ -136,15 +138,16 @@ fn generate_args_in_cmd(
 {indent}    fn comp_options(_history: &History, _arg: &str) -> Vec<Completion> {{
 {indent}        vec![]
 {indent}    }}
-        fn id() -> id::Arg {{
-            id::Arg::new(line!(), \"{name}\")
-        }}
-        fn generate() -> Arg {{
-            Arg {{
-                id: Self::id(),
-                comp_options: Self::comp_options,
-            }}
-        }}
+{indent}    fn id() -> id::Arg {{
+{indent}        id::Arg::new(line!(), \"{name}\")
+{indent}    }}
+{indent}    fn generate() -> Arg {{
+{indent}        Arg {{
+{indent}            id: Self::id(),
+{indent}            comp_options: Self::comp_options,
+{indent}            max_values: {max_values}.try_into().unwrap(),
+{indent}        }}
+{indent}    }}
 {indent}}}"
         )?;
 
@@ -257,6 +260,7 @@ fn generate_recur(
 
         if level > 0 {
             let pre = "super::".repeat(level);
+            writeln!(w, "{indent}#[allow(unused)]")?;
             writeln!(w, "{indent}use {pre}Supplements;")?;
         }
         writeln!(w, "{indent}use supplements::*;")?;

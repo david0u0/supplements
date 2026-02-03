@@ -27,5 +27,8 @@ pub enum SubCommand {
         sub_test: Option<ThisTest>,
     },
     #[clap(about = "help for \"sub2\"")]
-    Sub2 { sub_test: String },
+    Sub2 {
+        arg_test_opt: Option<String>,
+        arg_test_vec: Vec<String>,
+    },
 }
