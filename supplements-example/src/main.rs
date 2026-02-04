@@ -26,8 +26,9 @@ impl def::checkout::ArgFileOrCommit for Supplements {
             let (hash, description) = line.split_once(" ").unwrap();
             ret.push(Completion::new(hash, description));
         }
-        for line in run_git("diff-tree --no-commit-id --name-only HEAD -r").lines() {
-            ret.push(Completion::new(line, "Modified file"));
+        for line in run_git("status --porcelain").lines() {
+            let (_, file) = line.rsplit_once(" ").unwrap();
+            ret.push(Completion::new(file, "Modified file"));
         }
         ret
     }
@@ -42,13 +43,14 @@ impl def::checkout::ArgFiles for Supplements {
                 def::checkout::ID_ARG_FILE_OR_COMMIT,
             ])
             .collect();
-        run_git("diff-tree --no-commit-id --name-only HEAD -r")
+        run_git("status --porcelain")
             .lines()
             .filter_map(|line| {
-                if prev.iter().any(|p| p.value == line) {
+                let (_, file) = line.rsplit_once(" ").unwrap();
+                if prev.iter().any(|p| p.value == file) {
                     None
                 } else {
-                    Some(Completion::new(line, "Modified file"))
+                    Some(Completion::new(file, "Modified file"))
                 }
             })
             .collect()
@@ -87,7 +89,7 @@ fn main() {
     }
 
     let args = args[1..].iter().map(String::from);
-    let res = def::CMD.supplement(args, false).unwrap();
+    let res = def::CMD.supplement(args).unwrap();
     for c in res.iter() {
         println!("{}\t{}", c.value, c.description);
     }

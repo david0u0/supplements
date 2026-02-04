@@ -91,30 +91,19 @@ fn parse_flag(s: &str, disable_flag: bool) -> Result<ParsedFlag<'_>> {
 }
 
 impl Command {
-    pub fn supplement(
-        &self,
-        args: impl Iterator<Item = String>,
-        last_is_empty: bool,
-    ) -> Result<Vec<Completion>> {
+    pub fn supplement(&self, args: impl Iterator<Item = String>) -> Result<Vec<Completion>> {
         let mut history = History::default();
-        self.supplement_with_history(&mut history, args, last_is_empty)
+        self.supplement_with_history(&mut history, args)
     }
 
     pub fn supplement_with_history(
         &self,
         history: &mut History,
         mut args: impl Iterator<Item = String>,
-        last_is_empty: bool,
     ) -> Result<Vec<Completion>> {
         args.next(); // ignore the first arg which is the program's name
 
-        let last_arg = if last_is_empty {
-            Some(String::new())
-        } else {
-            None
-        };
-
-        let mut args = args.chain(last_arg.into_iter()).peekable();
+        let mut args = args.peekable();
         if args.peek().is_none() {
             return Err(Error::ArgsTooShort);
         }

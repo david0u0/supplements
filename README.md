@@ -1,7 +1,7 @@
 # Supplements
 > Shell-agnostic, extensible CLI completion for Rust 💊
 
-*supplements** is a Rust library that generates completion scaffolding as Rust code.
+**supplements** is a Rust library that generates completion scaffolding as Rust code.
 
 Give it a [`clap`](https://github.com/clap-rs/clap) object, and intead of spitting out shell files that you later have to manually edit, it spits out Rust! `supplement` is:
 
@@ -168,6 +168,8 @@ pub mod log {
 
 And now you can start to implement it. If you missed something, it's a compile error, so just relex and let Rust get your back 💪
 
+Here's an example. The generated file is already in `$OUT_DIR/definition.rs`.
+
 ```rs
 use std::process::Command;
 use supplements::{Completion, History};
@@ -196,8 +198,9 @@ impl def::checkout::ArgFileOrCommit for Supplements {
             let (hash, description) = line.split_once(" ").unwrap();
             ret.push(Completion::new(hash, description));
         }
-        for line in run_git("diff-tree --no-commit-id --name-only HEAD -r").lines() {
-            ret.push(Completion::new(line, "Modified file"));
+        for line in run_git("status --porcelain").lines() {
+            let (_, file) = line.rsplit_once(" ").unwrap();
+            ret.push(Completion::new(file, "Modified file"));
         }
         ret
     }
@@ -212,13 +215,14 @@ impl def::checkout::ArgFiles for Supplements {
                 def::checkout::ID_ARG_FILE_OR_COMMIT,
             ])
             .collect();
-        run_git("diff-tree --no-commit-id --name-only HEAD -r")
+        run_git("status --porcelain")
             .lines()
             .filter_map(|line| {
-                if prev.iter().any(|p| p.value == line) {
+                let (_, file) = line.rsplit_once(" ").unwrap();
+                if prev.iter().any(|p| p.value == file) {
                     None
                 } else {
-                    Some(Completion::new(line, "Modified file"))
+                    Some(Completion::new(file, "Modified file"))
                 }
             })
             .collect()

@@ -75,8 +75,14 @@ fn try_run(args: &str, last_is_empty: bool) -> (Vec<SingleHistory>, Result<Vec<C
 
     let args = args.split(' ').map(|s| s.to_owned());
     let args = std::iter::once("whatever".to_owned()).chain(args);
+    let last = if last_is_empty {
+        Some(String::new())
+    } else {
+        None
+    };
+    let args = args.chain(last.into_iter());
     let mut history = History::default();
-    let res = def::ROOT.supplement_with_history(&mut history, args, last_is_empty);
+    let res = def::ROOT.supplement_with_history(&mut history, args);
     (history.into_inner(), res)
 }
 fn run(args: &str, last_is_empty: bool) -> (Vec<SingleHistory>, Vec<Completion>) {
