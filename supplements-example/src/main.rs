@@ -1,6 +1,7 @@
 use clap::{CommandFactory, Parser};
+use std::process::Command;
 use supplements::{Completion, History};
-use supplements_example::args::Root;
+use supplements_example::args::Git;
 
 mod def {
     include!(concat!(env!("OUT_DIR"), "/definition.rs"));
@@ -8,40 +9,60 @@ mod def {
 
 use def::Supplements;
 
-impl def::FlagYetAnotherTest for Supplements {
-    fn comp_options(history: &History, _arg: &str) -> Vec<Completion> {
-        if let Some(last) = history.find_last(Self::ID) {
-            let last: u32 = last.value.parse().unwrap();
-            return vec![Completion::new(&(last + 1).to_string(), "")];
-        }
-        return vec![Completion::new("1", "")];
-    }
+fn run_git(args: &str) -> String {
+    let out = Command::new("git")
+        .args(args.split(" "))
+        .output()
+        .unwrap()
+        .stdout;
+    String::from_utf8(out).unwrap()
 }
-impl def::sub2::ArgArgTestOpt for Supplements {
+impl def::FlagGitDir for Supplements {} // default implementation
+impl def::checkout::ArgFileOrCommit for Supplements {
+    /// For the first argument, it can either be a git commit or a file
     fn comp_options(_history: &History, _arg: &str) -> Vec<Completion> {
-        vec![
-            Completion::new("opt-value-1", ""),
-            Completion::new("opt-value-2", ""),
-        ]
-    }
-}
-impl def::sub2::ArgArgTestVec for Supplements {
-    fn comp_options(_history: &History, _arg: &str) -> Vec<Completion> {
-        vec![
-            Completion::new("vec-value-1", ""),
-            Completion::new("vec-value-2", ""),
-        ]
-    }
-}
-impl def::External for Supplements {
-    fn comp_options(history: &History, _arg: &str) -> Vec<Completion> {
-        if history.find(Self::ID).is_some() {
-            return vec![Completion::new("external-arg", "")];
+        let mut ret = vec![];
+        for line in run_git("log --oneline -10").lines() {
+            let (hash, description) = line.split_once(" ").unwrap();
+            ret.push(Completion::new(hash, description));
         }
-        vec![
-            Completion::new("external-1", ""),
-            Completion::new("external-2", ""),
-        ]
+        for line in run_git("diff-tree --no-commit-id --name-only HEAD -r").lines() {
+            ret.push(Completion::new(line, "Modified file"));
+        }
+        ret
+    }
+}
+impl def::checkout::ArgFiles for Supplements {
+    /// For the second and more arguments, it can only be file
+    /// Let's also filter out those files we've already seen!
+    fn comp_options(history: &History, _arg: &str) -> Vec<Completion> {
+        let prev: Vec<_> = history
+            .find_all(&[
+                def::checkout::ID_ARG_FILES,
+                def::checkout::ID_ARG_FILE_OR_COMMIT,
+            ])
+            .collect();
+        run_git("diff-tree --no-commit-id --name-only HEAD -r")
+            .lines()
+            .filter_map(|line| {
+                if prev.iter().any(|p| p.value == line) {
+                    None
+                } else {
+                    Some(Completion::new(line, "Modified file"))
+                }
+            })
+            .collect()
+    }
+}
+impl def::log::ArgCommit for Supplements {
+    fn comp_options(_history: &History, _arg: &str) -> Vec<Completion> {
+        run_git("log --oneline -10")
+            .lines()
+            .map(|line| {
+                let (hash, description) = line.split_once(" ").unwrap();
+                Completion::new(hash, description)
+            })
+            .collect()
     }
 }
 
@@ -52,22 +73,22 @@ fn main() {
     log::info!("args = {:?}", args);
 
     if args.len() == 2 && args[1] == "generate" {
-        supplements::generate(&mut Root::command(), &mut std::io::stdout()).unwrap();
+        supplements::generate(&mut Git::command(), &mut std::io::stdout()).unwrap();
         return;
     }
 
-    if args.get(1).map(|s| s.as_str()) == Some("complete") {
-        let args = (&args[2..]).iter().map(String::from);
-        let res = def::CMD.supplement(args, false).unwrap();
-        for c in res.iter() {
-            println!("{}\t{}", c.value, c.description);
+    if args.get(1).map(|s| s.as_str()) == Some("parse") {
+        let res = Git::try_parse_from(args[1..].iter());
+        match res {
+            Ok(res) => println!("{:?}", res),
+            Err(err) => println!("{err}"),
         }
         return;
     }
 
-    let res = Root::try_parse_from(args.iter());
-    match res {
-        Ok(res) => println!("{:?}", res),
-        Err(err) => println!("{err}"),
+    let args = args[1..].iter().map(String::from);
+    let res = def::CMD.supplement(args, false).unwrap();
+    for c in res.iter() {
+        println!("{}\t{}", c.value, c.description);
     }
 }

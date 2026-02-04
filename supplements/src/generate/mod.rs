@@ -147,13 +147,14 @@ fn generate_args_in_cmd(
     let args = args.chain(ext_sub.into_iter());
 
     for (name, rust_name, max_values) in args {
+        let id_name = to_screaming_snake_case(&format!("id_{}_{name}", NameType::ARG));
         writeln!(
             w,
             "\
+{indent}pub const {id_name}: id::Arg = id::Arg::new(line!(), \"{name}\");
 {indent}pub trait {rust_name} {{
-{indent}    const ID: id::Arg = id::Arg::new(line!(), \"{name}\");
 {indent}    const OBJ: Arg = Arg {{
-{indent}        id: Self::ID,
+{indent}        id: {id_name},
 {indent}        comp_options: Self::comp_options,
 {indent}        max_values: {max_values},
 {indent}    }};
@@ -223,13 +224,14 @@ fn generate_flags_in_cmd(
         let longs = Join(longs.iter().map(|s| format!("\"{s}\"")));
 
         if !is_const {
+            let id_name = to_screaming_snake_case(&format!("id_{}_{name}", NameType::FLAG));
             writeln!(
                 w,
                 "\
+{indent}pub const {id_name}: id::Flag = id::Flag::new(line!(), \"{name}\");
 {indent}pub trait {rust_name} {{
-{indent}    const ID: id::Flag = id::Flag::new(line!(), \"{name}\");
 {indent}    const OBJ: Flag = Flag {{
-{indent}        id: Self::ID,
+{indent}        id: {id_name},
 {indent}        info: info::FlagInfo {{
 {indent}            short: &[{shorts}],
 {indent}            long: &[{longs}],

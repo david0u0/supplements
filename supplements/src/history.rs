@@ -100,6 +100,16 @@ impl History {
         }
         None
     }
+    pub fn find_all<'a, I: ID>(&'a self, ids: &'a [I]) -> impl Iterator<Item = &'a I::Ret> {
+        self.0.iter().filter_map(|h| {
+            for id in ids.iter() {
+                if let Some(h) = id.match_and_cast(h) {
+                    return Some(h);
+                }
+            }
+            None
+        })
+    }
 }
 
 impl From<Vec<SingleHistory>> for History {

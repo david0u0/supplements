@@ -239,6 +239,7 @@ impl Command {
         let mut raise_empty_err = true;
         let ret: Vec<_> = match parse_flag(&arg, self.doing_external(args_ctx))? {
             ParsedFlag::Empty | ParsedFlag::NotFlag => {
+                raise_empty_err = false;
                 let cmd_slice = if args_ctx.has_seen_arg() {
                     log::info!("no completion for subcmd because we've already seen some args");
                     &[]
