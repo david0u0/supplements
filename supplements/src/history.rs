@@ -33,6 +33,24 @@ impl ID for id::Flag {
         }
     }
 }
+impl ID for id::Arg {
+    type Ret = SingleHistoryArg;
+    fn match_and_cast(self, h: &SingleHistory) -> Option<&Self::Ret> {
+        match h {
+            SingleHistory::Arg(h) if h.id == self => Some(h),
+            _ => None,
+        }
+    }
+}
+impl ID for id::Command {
+    type Ret = SingleHistoryCommand;
+    fn match_and_cast(self, h: &SingleHistory) -> Option<&Self::Ret> {
+        match h {
+            SingleHistory::Command(h) if h.0 == self => Some(h),
+            _ => None,
+        }
+    }
+}
 
 #[derive(Default, Debug, Eq, PartialEq)]
 pub struct History(Vec<SingleHistory>);

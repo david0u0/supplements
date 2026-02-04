@@ -19,6 +19,7 @@ impl NameType {
     const FLAG: Self = NameType("Flag");
     const ARG: Self = NameType("Arg");
     const COMMAND: Self = NameType("CMD");
+    const External: Self = NameType("External");
 }
 impl std::fmt::Display for NameType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -118,7 +119,15 @@ fn generate_args_in_cmd(
     w: &mut impl Write,
 ) -> std::io::Result<Vec<String>> {
     let mut args_names = vec![];
-    for arg in utils::args(cmd) {
+
+    let ext_sub = if cmd.is_allow_external_subcommands_set() {
+        log::debug!("generating external subcommand");
+        let name = NameType::External.to_string();
+        Some((name.clone(), name, std::usize::MAX))
+    } else {
+        None
+    };
+    let args = utils::args(cmd).map(|arg| {
         let name = arg.get_id().to_string();
 
         log::debug!("generating arg {}", name);
@@ -127,6 +136,11 @@ fn generate_args_in_cmd(
         let max_values = num_args.max_values();
         let rust_name = gen_rust_name(NameType::ARG, &name, false);
 
+        (name, rust_name, max_values)
+    });
+    let args = args.chain(ext_sub.into_iter());
+
+    for (name, rust_name, max_values) in args {
         writeln!(
             w,
             "\
@@ -261,7 +275,6 @@ fn generate_recur(
 
         let cmd_name = NameType::COMMAND;
 
-        // TODO: external sub commands
         let args = Join(args.iter().map(|a| format!("<Supplements as {a}>::OBJ")));
         let flags = Join(flags.iter().map(|(is_const, f)| {
             if *is_const {

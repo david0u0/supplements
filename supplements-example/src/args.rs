@@ -13,8 +13,8 @@ pub struct Root {
     pub this_test: Vec<ThisTest>,
     #[clap(short = 'a', long)]
     pub another_test: bool,
-    #[clap(short = 'y', long, overrides_with = "yet_another_test")]
-    pub yet_another_test: u32,
+    #[clap(short = 'y', long, overrides_with = "yet_another_test", /* TODO: global = true*/)]
+    pub yet_another_test: Option<u32>,
 
     #[clap(subcommand)]
     pub sub: Option<SubCommand>,
@@ -22,6 +22,9 @@ pub struct Root {
 
 #[derive(Parser, Debug)]
 pub enum SubCommand {
+    #[clap(external_subcommand)]
+    Other(Vec<String>),
+
     Sub1 {
         #[clap(short = 's', long, help = "help for \"s\"")]
         sub_test: Option<ThisTest>,

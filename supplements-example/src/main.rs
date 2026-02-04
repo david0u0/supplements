@@ -25,6 +25,17 @@ impl def::sub2::ArgArgTestVec for Supplements {
         ]
     }
 }
+impl def::External for Supplements {
+    fn comp_options(history: &History, _arg: &str) -> Vec<Completion> {
+        if history.find(Self::ID).is_some() {
+            return vec![Completion::new("external-arg", "")];
+        }
+        vec![
+            Completion::new("external-1", ""),
+            Completion::new("external-2", ""),
+        ]
+    }
+}
 
 fn main() {
     env_logger::init();
