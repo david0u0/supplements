@@ -160,7 +160,7 @@ fn generate_args_in_cmd(
 {indent}    }};
 
 {indent}    fn comp_options(_history: &History, _arg: &str) -> Vec<Completion> {{
-{indent}        vec![]
+{indent}        Completion::files()
 {indent}    }}
 {indent}}}"
         )?;
@@ -242,7 +242,7 @@ fn generate_flags_in_cmd(
 {indent}    }};
 
 {indent}    fn comp_options(_history: &History, _arg: &str) -> Vec<Completion> {{
-{indent}        vec![]
+{indent}        Completion::files()
 {indent}    }}
 {indent}}}"
             )?;

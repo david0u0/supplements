@@ -1,3 +1,5 @@
+use std::fs;
+
 pub mod error;
 pub mod id;
 pub mod info;
@@ -25,5 +27,30 @@ impl Completion {
             value: value.to_owned(),
             description: description.to_owned(),
         }
+    }
+    pub fn files() -> Vec<Self> {
+        let paths = match fs::read_dir("./") {
+            Ok(paths) => paths,
+            Err(err) => {
+                log::warn!("error reading current directory: {:?}", err);
+                return vec![];
+            }
+        };
+
+        paths
+            .filter_map(|p| {
+                let p = match p {
+                    Ok(p) => p.path(),
+                    Err(err) => {
+                        log::warn!("error reading current directory: {:?}", err);
+                        return None;
+                    }
+                };
+                let Some(file_name) = p.file_name() else {
+                    return None;
+                };
+                Some(Completion::new(file_name.to_string_lossy().as_ref(), ""))
+            })
+            .collect()
     }
 }
