@@ -12,6 +12,9 @@ impl Flag {
     pub const fn new(id: u32, ident: &'static str) -> Self {
         Flag(id, ident)
     }
+    pub fn name(&self) -> &'static str {
+        self.1
+    }
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]

@@ -4,6 +4,7 @@ use crate::parsed_flag::Error as ParsedFlagError;
 pub enum Error {
     ParsedFlag(ParsedFlagError),
     BoolFlagEqualsValue(String),
+    FlagNoValue(&'static str),
     FlagNotFound(String),
     NoPossibleCompletion,
     UnexpectedArg(String), // try to provide arg where there isn't any

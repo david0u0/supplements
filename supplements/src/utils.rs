@@ -47,19 +47,30 @@ impl Flag {
         &self,
         history: &mut History,
         args: &mut Peekable<impl Iterator<Item = String>>,
-    ) -> Option<Vec<Completion>> {
+    ) -> Result<Option<Vec<Completion>>> {
         let Some(comp_options) = self.comp_options else {
             history.push_pure_flag(self.id);
-            return None;
+            return Ok(None);
         };
 
         let arg = args.next().unwrap();
+        match parse_flag(&arg, false)? {
+            ParsedFlag::NotFlag | ParsedFlag::Empty | ParsedFlag::SingleDash => (),
+            ParsedFlag::DoubleDash | ParsedFlag::Long { .. } | ParsedFlag::Shorts => {
+                let name = self.id.name();
+                log::warn!(
+                    "`--{name} {arg}` is invalid. Maybe you should write it like `--{name}={arg}",
+                );
+                return Err(Error::FlagNoValue(name));
+            }
+        }
+
         if args.peek().is_none() {
-            return Some(comp_options(&history, &arg));
+            return Ok(Some(comp_options(&history, &arg)));
         }
 
         history.push_flag(self.id, arg);
-        None
+        Ok(None)
     }
 }
 
@@ -177,7 +188,7 @@ impl Command {
                     }
                     $history.push_flag($flag.id, equal.to_string());
                 } else {
-                    let res = $flag.supplement($history, args);
+                    let res = $flag.supplement($history, args)?;
                     if let Some(res) = res {
                         return Ok(res);
                     }

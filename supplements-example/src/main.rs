@@ -14,7 +14,7 @@ impl def::FlagYetAnotherTest for Supplements {
             let last: u32 = last.value.parse().unwrap();
             return vec![Completion::new(&(last + 1).to_string(), "")];
         }
-        vec![]
+        return vec![Completion::new("1", "")];
     }
 }
 impl def::sub2::ArgArgTestOpt for Supplements {
@@ -56,19 +56,18 @@ fn main() {
         return;
     }
 
-    if args.get(1).map(|s| s.as_str()) == Some("parse") {
-        let res = Root::try_parse_from(args[1..].iter());
-        match res {
-            Ok(res) => println!("{:?}", res),
-            Err(err) => println!("{err}"),
+    if args.get(1).map(|s| s.as_str()) == Some("complete") {
+        let args = (&args[2..]).iter().map(String::from);
+        let res = def::CMD.supplement(args, false).unwrap();
+        for c in res.iter() {
+            println!("{}\t{}", c.value, c.description);
         }
         return;
     }
 
-    let mut args = args.into_iter();
-    args.next();
-    let res = def::CMD.supplement(args, false).unwrap();
-    for c in res.iter() {
-        println!("{}\t{}", c.value, c.description);
+    let res = Root::try_parse_from(args.iter());
+    match res {
+        Ok(res) => println!("{:?}", res),
+        Err(err) => println!("{err}"),
     }
 }
