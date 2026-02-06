@@ -238,10 +238,9 @@ impl Command {
                     log::debug!("completion for {} subcommands", self.commands.len());
                     self.commands
                 };
-                let cmd_iter = cmd_slice.iter().map(|c| Completion {
-                    value: c.info.name.to_string(),
-                    description: c.info.description.to_string(),
-                });
+                let cmd_iter = cmd_slice
+                    .iter()
+                    .map(|c| Completion::new(c.info.name, c.info.description).group("command"));
                 let arg_comp = if let Some(arg_obj) = args_ctx.next_arg() {
                     log::debug!("completion for args {:?}", arg_obj.id);
                     (arg_obj.comp_options)(history, &arg)
@@ -274,7 +273,7 @@ impl Command {
                 };
                 comp_options(history, value)
                     .into_iter()
-                    .map(|c| Completion::new(&format!("--{}={}", body, c.value), &c.description))
+                    .map(|c| c.value(|v| format!("--{body}={v}")))
                     .collect()
             }
             ParsedFlag::Shorts => {
@@ -284,12 +283,7 @@ impl Command {
                     let value = resolved.value.unwrap_or("");
                     comp_options(history, value)
                         .into_iter()
-                        .map(|c| {
-                            Completion::new(
-                                &format!("{}{}", resolved.flag_part, c.value),
-                                &c.description,
-                            )
-                        })
+                        .map(|c| c.value(|v| format!("{}{}", resolved.flag_part, v)))
                         .collect()
                 } else {
                     log::debug!("list short flags with history {:?}", history);
@@ -298,11 +292,10 @@ impl Command {
                         .map(|f| f.gen_completion(Some(false)))
                         .flatten()
                         .map(|c| {
-                            let flag = &c.value[1..]; // skip the first '-' character
-                            Completion::new(
-                                &format!("{}{}", resolved.flag_part, &flag),
-                                &c.description,
-                            )
+                            c.value(|v| {
+                                let flag = &v[1..]; // skip the first '-' character
+                                format!("{}{}", resolved.flag_part, flag)
+                            })
                         })
                         .collect()
                 }

@@ -24,11 +24,11 @@ impl def::checkout::ArgFileOrCommit for Supplements {
         let mut ret = vec![];
         for line in run_git("log --oneline -10").lines() {
             let (hash, description) = line.split_once(" ").unwrap();
-            ret.push(Completion::new(hash, description));
+            ret.push(Completion::new(hash, description).group("Commits"));
         }
         for line in run_git("status --porcelain").lines() {
             let (_, file) = line.rsplit_once(" ").unwrap();
-            ret.push(Completion::new(file, "Modified file"));
+            ret.push(Completion::new(file, "").group("Modified file"));
         }
         ret
     }
@@ -50,7 +50,7 @@ impl def::checkout::ArgFiles for Supplements {
                 if prev.iter().any(|p| p.value == file) {
                     None
                 } else {
-                    Some(Completion::new(file, "Modified file"))
+                    Some(Completion::new(file, "").group("Modified file"))
                 }
             })
             .collect()
@@ -62,7 +62,7 @@ impl def::log::ArgCommit for Supplements {
             .lines()
             .map(|line| {
                 let (hash, description) = line.split_once(" ").unwrap();
-                Completion::new(hash, description)
+                Completion::new(hash, description).group("Commits")
             })
             .collect()
     }

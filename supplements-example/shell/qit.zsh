@@ -1,6 +1,9 @@
 #compdef qit
 
 _qit() {
+
+    local -a expl=()
+
     local -a candidates
     local cur=${words[-1]}
 
@@ -10,14 +13,26 @@ _qit() {
         candidates=("${(@f)$( echo zsh ${words[1,CURRENT]} | xargs PLACEHOLDER_FOR_BIN_PATH )}")
     fi
 
-    local -a values descs
+    local group=''
+    local -a expl=()
+    local -a values
+    local -a descs
     for line in $candidates; do
-        parts=(${(@ps:\t:)line})
-        values+=("${parts[1]}")
-        descs+=("${parts[1]} ${parts[2]}")
-    done
+        echo $line >> /tmp/sup.log
+        if [[ $line == $'\t'* ]]; then
+            parts=(${(@ps:\t:)line})
+            values+=("${parts[1]}")
+            descs+=("${parts[2]}")
+        else
+            if [[ ! -z "$group" ]]; then
+                _wanted $group expl $group compadd -d descs -- ${values}
+            fi
 
-    compadd -d descs -a values
+            group=$line
+            values=()
+            descs=()
+        fi
+    done
 }
 
 _qit "$@"

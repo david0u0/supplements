@@ -7,13 +7,23 @@ use std::path::{MAIN_SEPARATOR_STR, Path};
 pub struct Completion {
     pub value: String,
     pub description: String,
+    pub group: Option<&'static str>,
 }
 impl Completion {
     pub fn new(value: &str, description: &str) -> Self {
         Completion {
             value: value.to_owned(),
             description: description.to_owned(),
+            group: None,
         }
+    }
+    pub fn value<F: FnOnce(&str) -> String>(mut self, val: F) -> Self {
+        self.value = val(&self.value);
+        self
+    }
+    pub fn group(mut self, group: &'static str) -> Self {
+        self.group = Some(group);
+        self
     }
     pub fn files(arg: &str) -> Vec<Self> {
         let path = Path::new(arg);
@@ -59,13 +69,8 @@ impl Completion {
                 };
                 let file_name = arg_dir.join(file_name);
                 let trailing = if file_name.is_dir() { "/" } else { "" };
-                let file_name = file_name.to_string_lossy();
-                if file_name.starts_with(arg) {
-                    let file_name = format!("{}{}", file_name, trailing);
-                    Some(Completion::new(&file_name, ""))
-                } else {
-                    None
-                }
+                let file_name = format!("{}{}", file_name.to_string_lossy(), trailing);
+                Some(Completion::new(&file_name, ""))
             })
             .collect()
     }
@@ -105,15 +110,60 @@ impl CompletionGroup {
     }
 
     pub fn print(&self, shell: Shell, w: &mut impl Write) -> IoResult<()> {
-        for comp in self.comps.iter() {
-            if !comp.value.starts_with(&self.arg) {
-                continue;
+        match shell {
+            Shell::Bash => {
+                for comp in self.comps.iter() {
+                    if !comp.value.starts_with(&self.arg) {
+                        continue; // If there are multiple candates, bash will not complete :(
+                    }
+                    writeln!(w, "{}", comp.value)?; // Bash doesn't allow description
+                }
             }
+            Shell::Fish => {
+                for comp in self.comps.iter() {
+                    if !comp.value.starts_with(&self.arg) {
+                        continue;
+                    }
+                    let desc = match (comp.description.as_str(), comp.group) {
+                        ("", None) => "",
+                        ("", Some(g)) => g,
+                        (desc, _) => desc,
+                    };
+                    writeln!(w, "{}\t{}", comp.value, desc)?
+                }
+            }
+            Shell::Zsh => {
+                let mut groups: Vec<(&str, Vec<&Completion>)> = vec![];
+                for comp in self.comps.iter() {
+                    let group = comp.group.unwrap_or("option");
+                    let (_, group_vec) =
+                        if let Some(group_vec) = groups.iter_mut().find(|(s, _)| *s == group) {
+                            group_vec
+                        } else {
+                            groups.push((group, vec![]));
+                            groups.last_mut().unwrap()
+                        };
+                    group_vec.push(comp);
+                }
 
-            match shell {
-                Shell::Fish => writeln!(w, "{}\t{}", comp.value, comp.description)?,
-                Shell::Zsh => writeln!(w, "{}\t{}", comp.value, comp.description)?,
-                Shell::Bash => writeln!(w, "{}", comp.value)?, // Bash doesn't allow description
+                // Group with fewer count shows first. If the same, sort by group name
+                groups.sort_by_key(|(k, v)| (v.len(), *k));
+
+                for (group, comps) in groups.into_iter() {
+                    writeln!(w, "{}", group)?;
+                    for comp in comps.into_iter() {
+                        if comp.description.is_empty() {
+                            writeln!(w, "\t{}\t{}", comp.value, comp.value)?
+                        } else {
+                            writeln!(
+                                w,
+                                "\t{}\t{} -- {}",
+                                comp.value, comp.value, comp.description
+                            )?
+                        }
+                    }
+                }
+                writeln!(w, "END")?;
             }
         }
         Ok(())
