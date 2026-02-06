@@ -13,4 +13,3 @@ clap = { version = "4" }
 
 [dev-dependencies]
 env_logger = '*'
-clap = { version = "4", features = ["derive"] }

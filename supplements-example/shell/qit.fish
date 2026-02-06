@@ -3,9 +3,9 @@ function __do_completion
     set cmd_arr (string split ' ' $cmd)
     if [ -z "$cmd_arr[-1]" ]
         # preserve the last white space
-        eval "PLACEHOLDER_FOR_BIN_PATH $cmd ''"
+        echo fish $cmd "''" | xargs PLACEHOLDER_FOR_BIN_PATH
     else
-        eval PLACEHOLDER_FOR_BIN_PATH $cmd
+        echo fish $cmd | xargs PLACEHOLDER_FOR_BIN_PATH
     end
 end
 

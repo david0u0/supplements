@@ -1,6 +1,6 @@
 use clap::{CommandFactory, Parser};
 use std::process::Command;
-use supplements::{Completion, History};
+use supplements::{Completion, History, Shell};
 use supplements_example::args::Git;
 
 mod def {
@@ -88,9 +88,9 @@ fn main() {
         return;
     }
 
-    let args = args[1..].iter().map(String::from);
-    let res = def::CMD.supplement(args).unwrap();
-    for c in res.iter() {
-        println!("{}\t{}", c.value, c.description);
-    }
+    let shell: Shell = args.get(1).unwrap().parse().unwrap();
+
+    let args = args[2..].iter().map(String::from);
+    let comps = def::CMD.supplement(args).unwrap();
+    comps.print(shell, &mut std::io::stdout()).unwrap();
 }

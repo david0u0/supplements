@@ -83,6 +83,7 @@ fn try_run(args: &str, last_is_empty: bool) -> (Vec<SingleHistory>, Result<Vec<C
     let args = args.chain(last.into_iter());
     let mut history = History::default();
     let res = def::ROOT.supplement_with_history(&mut history, args);
+    let res = res.map(|r| r.into_inner().0);
     (history.into_inner(), res)
 }
 fn run(args: &str, last_is_empty: bool) -> (Vec<SingleHistory>, Vec<Completion>) {

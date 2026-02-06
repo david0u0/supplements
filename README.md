@@ -78,10 +78,8 @@ fn main() {
     // `args` looks like ["supplement-example", "git", "log", "--graph"]
     // so we should skip the first arg
     let args = std::env::args().skip(1);
-    let res = def::CMD.supplement(args).unwrap();
-    for c in res.iter() {
-        println!("{}\t{}", c.value, c.description);
-    }
+    let comps = def::CMD.supplement(args).unwrap();
+    comps.print(supplements::Shell::Fish, &mut std:io::stdout).unwrap()
 }
 ```
 

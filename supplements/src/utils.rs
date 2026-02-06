@@ -1,6 +1,7 @@
 use std::iter::Peekable;
 
 use crate::arg_context::ArgsContext;
+use crate::completion::CompletionGroup;
 use crate::error::Error;
 use crate::id;
 use crate::info::*;
@@ -47,7 +48,7 @@ impl Flag {
         &self,
         history: &mut History,
         args: &mut Peekable<impl Iterator<Item = String>>,
-    ) -> Result<Option<Vec<Completion>>> {
+    ) -> Result<Option<CompletionGroup>> {
         let Some(comp_options) = self.comp_options else {
             history.push_pure_flag(self.id);
             return Ok(None);
@@ -66,7 +67,8 @@ impl Flag {
         }
 
         if args.peek().is_none() {
-            return Ok(Some(comp_options(&history, &arg)));
+            let group = CompletionGroup::new(comp_options(&history, &arg), arg);
+            return Ok(Some(group));
         }
 
         history.push_flag(self.id, arg);
@@ -91,7 +93,7 @@ fn parse_flag(s: &str, disable_flag: bool) -> Result<ParsedFlag<'_>> {
 }
 
 impl Command {
-    pub fn supplement(&self, args: impl Iterator<Item = String>) -> Result<Vec<Completion>> {
+    pub fn supplement(&self, args: impl Iterator<Item = String>) -> Result<CompletionGroup> {
         let mut history = History::default();
         self.supplement_with_history(&mut history, args)
     }
@@ -100,7 +102,7 @@ impl Command {
         &self,
         history: &mut History,
         mut args: impl Iterator<Item = String>,
-    ) -> Result<Vec<Completion>> {
+    ) -> Result<CompletionGroup> {
         args.next(); // ignore the first arg which is the program's name
 
         let mut args = args.peekable();
@@ -155,7 +157,7 @@ impl Command {
         args_ctx_opt: &mut Option<ArgsContext<'_>>,
         history: &mut History,
         args: &mut Peekable<impl Iterator<Item = String>>,
-    ) -> Result<Vec<Completion>> {
+    ) -> Result<CompletionGroup> {
         let arg = args.next().unwrap();
 
         let args_ctx = if let Some(ctx) = args_ctx_opt {
@@ -224,7 +226,7 @@ impl Command {
         args_ctx: &mut ArgsContext,
         history: &mut History,
         arg: String,
-    ) -> Result<Vec<Completion>> {
+    ) -> Result<CompletionGroup> {
         let mut raise_empty_err = true;
         let ret: Vec<_> = match parse_flag(&arg, self.doing_external(args_ctx))? {
             ParsedFlag::Empty | ParsedFlag::NotFlag => {
@@ -309,7 +311,7 @@ impl Command {
         if ret.is_empty() && raise_empty_err {
             return Err(Error::NoPossibleCompletion);
         }
-        Ok(ret)
+        Ok(CompletionGroup::new(ret, arg))
     }
 
     fn resolve_shorts<'a, 'b>(
