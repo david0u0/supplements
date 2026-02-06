@@ -73,6 +73,7 @@ impl Completion {
 
 #[derive(Clone, Copy)]
 pub enum Shell {
+    Zsh,
     Fish,
     Bash,
 }
@@ -80,6 +81,7 @@ impl std::str::FromStr for Shell {
     type Err = String;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let ret = match s {
+            "zsh" => Shell::Zsh,
             "fish" => Shell::Fish,
             "bash" => Shell::Bash,
             _ => return Err(format!("Unknown shell {}", s)),
@@ -110,6 +112,7 @@ impl CompletionGroup {
 
             match shell {
                 Shell::Fish => writeln!(w, "{}\t{}", comp.value, comp.description)?,
+                Shell::Zsh => writeln!(w, "{}\t{}", comp.value, comp.description)?,
                 Shell::Bash => writeln!(w, "{}", comp.value)?, // Bash doesn't allow description
             }
         }

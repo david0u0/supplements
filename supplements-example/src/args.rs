@@ -13,6 +13,7 @@ pub enum SubCommand {
         file_or_commit: Option<String>,
         files: Vec<std::path::PathBuf>,
     },
+    #[clap(about = "log")]
     Log {
         #[clap(long)]
         graph: bool,

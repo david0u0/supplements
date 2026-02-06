@@ -45,3 +45,8 @@ cp shell/qit.bash $COMP_FILE
 BIN_FILE_ESC=$(echo $BIN_FILE | sed -e "s/\//\\\\\//g")
 sed -i -e "s/PLACEHOLDER_FOR_BIN_PATH/$BIN_FILE_ESC/g" $COMP_FILE
 
+COMP_FILE=$USR_PATH/local/share/zsh/site-functions/_qit
+echo Installing completion file to $COMP_FILE...
+cp shell/qit.zsh $COMP_FILE
+BIN_FILE_ESC=$(echo $BIN_FILE | sed -e "s/\//\\\\\//g")
+sed -i -e "s/PLACEHOLDER_FOR_BIN_PATH/$BIN_FILE_ESC/g" $COMP_FILE
