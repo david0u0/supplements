@@ -102,7 +102,7 @@ fn generate_args_in_cmd(
     let ext_sub = if cmd.is_allow_external_subcommands_set() {
         log::debug!("generating external subcommand");
         let name = NameType::EXTERNAL.to_string();
-        Some((name.clone(), name, std::usize::MAX))
+        Some((name.clone(), name, std::usize::MAX, true))
     } else {
         None
     };
@@ -114,12 +114,17 @@ fn generate_args_in_cmd(
         let max_values = arg.get_max_num_args();
         let rust_name = gen_rust_name(NameType::ARG, &name, false);
 
-        (name, rust_name, max_values)
+        (name, rust_name, max_values, false)
     });
     let args = args.chain(ext_sub.into_iter());
 
-    for (name, rust_name, max_values) in args {
+    for (name, rust_name, max_values, is_external) in args {
         let id_name = to_screaming_snake_case(&format!("id_{}_{name}", NameType::ARG));
+        let body = if is_external {
+            "vec![]"
+        } else {
+            "Completion::files(arg)"
+        };
         writeln!(
             w,
             "\
@@ -132,7 +137,7 @@ fn generate_args_in_cmd(
 {indent}    }};
 
 {indent}    fn comp_options(_history: &History, arg: &str) -> Vec<Completion> {{
-{indent}        Completion::files(arg)
+{indent}        {body}
 {indent}    }}
 {indent}}}"
         )?;
