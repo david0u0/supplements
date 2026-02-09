@@ -435,6 +435,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "supplements-tests"
+version = "0.1.1"
+dependencies = [
+ "clap 4.5.56",
+ "env_logger",
+ "log",
+ "supplements",
+]
+
+[[package]]
 name = "syn"
 version = "1.0.109"
 source = "registry+https://github.com/rust-lang/crates.io-index"

@@ -123,7 +123,7 @@ fn generate_args_in_cmd(
         let body = if is_external {
             "vec![]"
         } else {
-            "Completion::files(arg)"
+            "Completion::files(_arg)"
         };
         writeln!(
             w,
@@ -136,7 +136,7 @@ fn generate_args_in_cmd(
 {indent}        max_values: {max_values},
 {indent}    }};
 
-{indent}    fn comp_options(_history: &History, arg: &str) -> Vec<Completion> {{
+{indent}    fn comp_options(_history: &History, _arg: &str) -> Vec<Completion> {{
 {indent}        {body}
 {indent}    }}
 {indent}}}"

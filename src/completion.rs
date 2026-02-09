@@ -105,6 +105,9 @@ impl CompletionGroup {
     pub fn new(comps: Vec<Completion>, arg: String) -> Self {
         CompletionGroup { arg, comps }
     }
+    pub fn inner(&self) -> (&[Completion], &str) {
+        (&self.comps, &self.arg)
+    }
     pub fn into_inner(self) -> (Vec<Completion>, String) {
         (self.comps, self.arg)
     }
