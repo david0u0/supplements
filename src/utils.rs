@@ -22,7 +22,7 @@ pub struct Arg {
     pub max_values: usize,
 }
 pub struct Command {
-    pub id: id::Command,
+    pub id: id::NoVal,
     pub info: CommandInfo,
     pub all_flags: &'static [Flag],
     pub args: &'static [Arg],
@@ -44,13 +44,35 @@ impl Flag {
                     .map(|s| Completion::new(&format!("-{s}"), self.info.description)),
             )
     }
+
+    fn exists_in_history(&self, history: &History) -> bool {
+        match self.id {
+            id::Flag::No(id) => history.find(id).is_some(),
+            id::Flag::Single(id) => history.find(id).is_some(),
+            id::Flag::Multi(id) => history.find(id).is_some(),
+        }
+    }
+    fn push_pure_flag(&self, history: &mut History) {
+        match self.id {
+            id::Flag::No(id) => history.push_no_val(id),
+            _ => unreachable!(),
+        }
+    }
+    fn push_flag(&self, history: &mut History, arg: String) {
+        match self.id {
+            id::Flag::Single(id) => history.push_single_val(id, arg),
+            id::Flag::Multi(id) => history.push_multi_val(id, arg),
+            _ => unreachable!(),
+        }
+    }
+
     fn supplement(
         &self,
         history: &mut History,
         args: &mut Peekable<impl Iterator<Item = String>>,
     ) -> Result<Option<CompletionGroup>> {
         let Some(comp_options) = self.comp_options else {
-            history.push_pure_flag(self.id);
+            self.push_pure_flag(history);
             return Ok(None);
         };
 
@@ -71,7 +93,7 @@ impl Flag {
             return Ok(Some(group));
         }
 
-        history.push_flag(self.id, arg);
+        self.push_flag(history, arg);
         Ok(None)
     }
 }
@@ -122,7 +144,7 @@ impl Command {
             if !f.once {
                 true
             } else {
-                let exists = history.find(f.id).is_some();
+                let exists = f.exists_in_history(history);
                 if exists {
                     log::debug!("flag {:?} already exists", f.id);
                 }
@@ -177,7 +199,7 @@ impl Command {
                     if $flag.comp_options.is_none() {
                         return Err(Error::BoolFlagEqualsValue(arg));
                     }
-                    $history.push_flag($flag.id, equal.to_string());
+                    $flag.push_flag($history, equal.to_string());
                 } else {
                     let res = $flag.supplement($history, args)?;
                     if let Some(res) = res {
@@ -199,7 +221,7 @@ impl Command {
                 };
                 match command {
                     Some(command) => {
-                        history.push_command(command.id);
+                        history.push_no_val(command.id);
                         return command.supplement_recur(&mut None, history, args);
                     }
                     None => {
@@ -287,7 +309,7 @@ impl Command {
                         .collect()
                 } else {
                     log::debug!("list short flags with history {:?}", history);
-                    history.push_pure_flag(resolved.last_flag.id);
+                    resolved.last_flag.push_pure_flag(history);
                     self.flags(history)
                         .map(|f| f.gen_completion(Some(false)))
                         .flatten()
@@ -347,7 +369,7 @@ impl Command {
                         });
                     }
 
-                    history.push_pure_flag(flag.id);
+                    flag.push_pure_flag(history);
                 }
             }
         }

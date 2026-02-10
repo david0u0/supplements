@@ -1,26 +1,45 @@
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub struct Arg(u32, &'static str);
-impl Arg {
-    pub const fn new(id: u32, ident: &'static str) -> Self {
-        Arg(id, ident)
-    }
+pub struct NoVal(u32, &'static str);
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct SingleVal(u32, &'static str);
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct MultiVal(u32, &'static str);
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Arg {
+    Single(SingleVal),
+    Multi(MultiVal),
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub struct Flag(u32, &'static str);
+pub enum Flag {
+    No(NoVal),
+    Single(SingleVal),
+    Multi(MultiVal),
+}
+
+impl NoVal {
+    pub const fn new(id: u32, ident: &'static str) -> Self {
+        NoVal(id, ident)
+    }
+}
+impl SingleVal {
+    pub const fn new(id: u32, ident: &'static str) -> Self {
+        SingleVal(id, ident)
+    }
+}
+impl MultiVal {
+    pub const fn new(id: u32, ident: &'static str) -> Self {
+        MultiVal(id, ident)
+    }
+}
+
 impl Flag {
-    pub const fn new(id: u32, ident: &'static str) -> Self {
-        Flag(id, ident)
-    }
-    pub fn name(&self) -> &'static str {
-        self.1
-    }
-}
-
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub struct Command(u32, &'static str);
-impl Command {
-    pub const fn new(id: u32, ident: &'static str) -> Self {
-        Command(id, ident)
+    pub(crate) fn name(self) -> &'static str {
+        match self {
+            Flag::No(NoVal(_, name)) => name,
+            Flag::Single(SingleVal(_, name)) => name,
+            Flag::Multi(MultiVal(_, name)) => name,
+        }
     }
 }

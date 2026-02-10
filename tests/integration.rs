@@ -6,8 +6,9 @@ mod def {
     use super::*;
     use supplements::info::*;
 
+    pub const C_FLAG_ID: id::NoVal = id::NoVal::new(line!(), "");
     pub const C_FLAG: Flag = Flag {
-        id: id::Flag::new(line!(), ""),
+        id: id::Flag::No(C_FLAG_ID),
         info: FlagInfo {
             short: &['c'],
             long: &["long-c", "long-c-2"],
@@ -16,8 +17,9 @@ mod def {
         comp_options: None,
         once: true,
     };
+    pub const B_FLAG_ID: id::SingleVal = id::SingleVal::new(line!(), "");
     pub const B_FLAG: Flag = Flag {
-        id: id::Flag::new(line!(), ""),
+        id: id::Flag::Single(B_FLAG_ID),
         info: FlagInfo {
             short: &['b', 'x'],
             long: &["long-b"],
@@ -33,8 +35,9 @@ mod def {
         }),
         once: true,
     };
+    pub const A_ARG_ID: id::SingleVal = id::SingleVal::new(line!(), "");
     pub const A_ARG: Arg = Arg {
-        id: id::Arg::new(line!(), ""),
+        id: id::Arg::Single(A_ARG_ID),
         comp_options: |_, _| {
             vec![
                 Completion::new("arg-option1", ""),
@@ -43,8 +46,9 @@ mod def {
         },
         max_values: 1,
     };
+    pub const ROOT_ID: id::NoVal = id::NoVal::new(line!(), "");
     pub const ROOT: Command = Command {
-        id: id::Command::new(line!(), ""),
+        id: ROOT_ID,
         all_flags: &[B_FLAG, C_FLAG],
         info: CommandInfo {
             name: "root",
@@ -53,8 +57,9 @@ mod def {
         args: &[A_ARG, D_ARG],
         commands: &[SUB],
     };
+    pub const SUB_ID: id::NoVal = id::NoVal::new(line!(), "");
     pub const SUB: Command = Command {
-        id: id::Command::new(line!(), ""),
+        id: SUB_ID,
         all_flags: &[B_FLAG],
         info: CommandInfo {
             name: "sub",
@@ -63,14 +68,15 @@ mod def {
         args: &[A_ARG, A_ARG],
         commands: &[],
     };
+    pub const D_ARG_ID: id::MultiVal = id::MultiVal::new(line!(), "");
     pub const D_ARG: Arg = Arg {
-        id: id::Arg::new(line!(), ""),
+        id: id::Arg::Multi(D_ARG_ID),
         comp_options: |_, _| vec![Completion::new("d-arg!", "")],
         max_values: 2,
     };
 }
 
-fn try_run(args: &str, last_is_empty: bool) -> (Vec<SingleHistory>, Result<Vec<Completion>>) {
+fn try_run(args: &str, last_is_empty: bool) -> (Vec<HistoryUnit>, Result<Vec<Completion>>) {
     let _ = env_logger::try_init();
 
     let args = args.split(' ').map(|s| s.to_owned());
@@ -86,7 +92,7 @@ fn try_run(args: &str, last_is_empty: bool) -> (Vec<SingleHistory>, Result<Vec<C
     let res = res.map(|r| r.into_inner().0);
     (history.into_inner(), res)
 }
-fn run(args: &str, last_is_empty: bool) -> (Vec<SingleHistory>, Vec<Completion>) {
+fn run(args: &str, last_is_empty: bool) -> (Vec<HistoryUnit>, Vec<Completion>) {
     let (h, r) = try_run(args, last_is_empty);
     (h, r.unwrap())
 }
@@ -96,47 +102,39 @@ fn map_comp_values(arr: &[Completion]) -> Vec<&str> {
     v
 }
 
-macro_rules! b_flag {
-    ($name:ident) => {
-        SingleHistory::Flag(SingleHistoryFlag {
-            id: def::$name.id,
-            value: String::new(),
-        })
+macro_rules! no {
+    ($id:ident) => {
+        HistoryUnit::No(HistoryUnitNoVal(def::$id))
     };
 }
-macro_rules! flag {
-    ($name:ident, $value:expr) => {
-        SingleHistory::Flag(SingleHistoryFlag {
-            id: def::$name.id,
+macro_rules! single {
+    ($id:ident, $value:expr) => {
+        HistoryUnit::Single(HistoryUnitSingleVal {
+            id: def::$id,
             value: $value.to_owned(),
         })
     };
 }
-macro_rules! arg {
-    ($name:ident, $value:expr) => {
-        SingleHistory::Arg(SingleHistoryArg {
-            id: def::$name.id,
-            value: $value.to_owned(),
+macro_rules! multi {
+    ($id:ident, $value:expr) => {
+        HistoryUnit::Multi(HistoryUnitMultiVal {
+            id: def::$id,
+            value: $value.iter().map(|s| s.to_string()).collect(),
         })
-    };
-}
-macro_rules! cmd {
-    ($name:ident) => {
-        SingleHistory::Command(SingleHistoryCommand(def::$name.id))
     };
 }
 
 #[test]
 fn test_args_last() {
     let (h, r) = run("sub a1", true);
-    assert_eq!(h, vec![cmd!(SUB), arg!(A_ARG, "a1")]);
+    assert_eq!(h, vec![no!(SUB_ID), single!(A_ARG_ID, "a1")]);
     assert_eq!(r, (def::A_ARG.comp_options)(&h.into(), ""));
 }
 
 #[test]
 fn test_flags_not_last() {
     let expected = (
-        vec![b_flag!(C_FLAG), flag!(B_FLAG, "option"), cmd!(SUB)],
+        vec![no!(C_FLAG_ID), single!(B_FLAG_ID, "option"), no!(SUB_ID)],
         (def::A_ARG.comp_options)(&Default::default(), ""),
     );
 
@@ -153,7 +151,7 @@ fn test_flags_not_last() {
 
     let (h, r) = run("-bc=option sub", true);
     assert_eq!(expected.1, r);
-    assert_eq!(h, vec![flag!(B_FLAG, "c=option"), cmd!(SUB)]);
+    assert_eq!(h, vec![single!(B_FLAG_ID, "c=option"), no!(SUB_ID)]);
 }
 
 #[test]
@@ -166,13 +164,13 @@ fn test_once_flag() {
     );
 
     let (h, r) = run("-b option -", false);
-    assert_eq!(h, vec![flag!(B_FLAG, "option")]);
+    assert_eq!(h, vec![single!(B_FLAG_ID, "option")]);
     assert_eq!(map_comp_values(&r), vec!["--long-c", "--long-c-2", "-c"],);
 }
 
 #[test]
 fn test_flags_last() {
-    let expected_h = vec![b_flag!(C_FLAG)];
+    let expected_h = vec![no!(C_FLAG_ID)];
 
     let (h, r) = run("-c --long-b=x", false);
     assert_eq!(expected_h, h);
@@ -202,7 +200,7 @@ fn test_flags_last() {
 #[test]
 fn test_flags_supplement() {
     let expected = (
-        vec![b_flag!(C_FLAG)],
+        vec![no!(C_FLAG_ID)],
         (def::B_FLAG.comp_options.unwrap())(&Default::default(), "x"),
     );
 
@@ -224,14 +222,14 @@ fn test_flags_supplement() {
 #[test]
 fn test_fall_back_and_var_len_arg() {
     let (h, r) = run("arg1", true);
-    assert_eq!(h, vec![arg!(A_ARG, "arg1")]);
+    assert_eq!(h, vec![single!(A_ARG_ID, "arg1")]);
     assert_eq!(map_comp_values(&r), vec!["d-arg!"]);
 
     let (h, r) = run("arg1 d1", true);
-    assert_eq!(h, vec![arg!(A_ARG, "arg1"), arg!(D_ARG, "d1")]);
+    assert_eq!(h, vec![single!(A_ARG_ID, "arg1"), multi!(D_ARG_ID, ["d1"])]);
     assert_eq!(map_comp_values(&r), vec!["d-arg!"]);
 
-    let expected_h = vec![arg!(A_ARG, "arg1"), arg!(D_ARG, "d1"), arg!(D_ARG, "d2")];
+    let expected_h = vec![single!(A_ARG_ID, "arg1"), multi!(D_ARG_ID, ["d1", "d2"])];
 
     let (h, r) = try_run("arg1 d1 d2", true);
     assert_eq!(h, expected_h);
@@ -245,17 +243,21 @@ fn test_fall_back_and_var_len_arg() {
 #[test]
 fn test_flag_after_args() {
     let (h, r) = run("sub arg1 --", false);
-    assert_eq!(h, vec![cmd!(SUB), arg!(A_ARG, "arg1")]);
+    assert_eq!(h, vec![no!(SUB_ID), single!(A_ARG_ID, "arg1")]);
     assert_eq!(map_comp_values(&r), vec!["--long-b"],);
 
     let (h, r) = run("sub arg1 --long-b flag1", false);
-    assert_eq!(h, vec![cmd!(SUB), arg!(A_ARG, "arg1")]);
+    assert_eq!(h, vec![no!(SUB_ID), single!(A_ARG_ID, "arg1")]);
     assert_eq!(map_comp_values(&r), vec!["flag1", "flag1!"],);
 
     let (h, r) = run("sub arg1 --long-b flag1", true);
     assert_eq!(
         h,
-        vec![cmd!(SUB), arg!(A_ARG, "arg1"), flag!(B_FLAG, "flag1")]
+        vec![
+            no!(SUB_ID),
+            single!(A_ARG_ID, "arg1"),
+            single!(B_FLAG_ID, "flag1")
+        ]
     );
     assert_eq!(map_comp_values(&r), vec!["arg-option1", "arg-option2"],);
 }
@@ -265,21 +267,26 @@ fn test_flag_after_external_sub() {
     let expected_r = vec!["d-arg!"];
 
     let (h, r) = run("--long-b flag1 ext", true);
-    assert_eq!(h, vec![flag!(B_FLAG, "flag1"), arg!(A_ARG, "ext")]);
+    assert_eq!(
+        h,
+        vec![single!(B_FLAG_ID, "flag1"), single!(A_ARG_ID, "ext")]
+    );
     assert_eq!(map_comp_values(&r), expected_r);
 
     let (h, r) = run("ext --", false);
-    assert_eq!(h, vec![arg!(A_ARG, "ext")]);
+    assert_eq!(h, vec![single!(A_ARG_ID, "ext")]);
     assert_eq!(map_comp_values(&r), expected_r);
 
     let (h, r) = run("ext --long-b flag1", false);
-    assert_eq!(h, vec![arg!(A_ARG, "ext"), arg!(D_ARG, "--long-b")]);
+    assert_eq!(
+        h,
+        vec![single!(A_ARG_ID, "ext"), multi!(D_ARG_ID, ["--long-b"])]
+    );
     assert_eq!(map_comp_values(&r), expected_r);
 
     let expected_h = vec![
-        arg!(A_ARG, "ext"),
-        arg!(D_ARG, "--long-b"),
-        arg!(D_ARG, "flag1"),
+        single!(A_ARG_ID, "ext"),
+        multi!(D_ARG_ID, ["--long-b", "flag1"]),
     ];
     let (h, r) = try_run("ext --long-b flag1", true);
     assert_eq!(h, expected_h);
