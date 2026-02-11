@@ -4,12 +4,15 @@ use clap::{Parser, ValueEnum};
 pub struct Arg {
     #[clap(long, global = true)]
     pub git_dir: Option<std::path::PathBuf>,
+    // TODO test an ignored global flag
     #[clap(subcommand)]
     pub sub: SubCommand,
 }
 #[derive(Parser, Debug)]
 pub enum SubCommand {
     Checkout {
+        #[clap(long)]
+        flag1: Option<String>, // ignored
         file_or_commit: Option<String>,
         files: Vec<std::path::PathBuf>,
     },
@@ -20,7 +23,13 @@ pub enum SubCommand {
         #[clap(long)]
         pretty: Option<Pretty>,
         commit: Option<String>,
+        #[clap(long)]
+        flag1: Option<String>,
+        #[clap(long)]
+        flag2: bool, // ignored
     },
+    #[clap(about = "log")]
+    IgnoredCmd { arg: Option<String> },
     #[clap(external_subcommand)]
     Other(Vec<String>),
 }

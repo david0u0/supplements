@@ -96,6 +96,7 @@ impl std::str::FromStr for Shell {
     }
 }
 
+#[derive(Debug)]
 pub struct CompletionGroup {
     arg: String,
     comps: Vec<Completion>,

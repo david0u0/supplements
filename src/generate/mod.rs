@@ -2,39 +2,53 @@ use std::borrow::Cow;
 use std::io::Write;
 
 mod abstraction;
+mod config;
 mod gen_default_impl;
-mod setting;
 mod utils;
 use abstraction::{ArgAction, Command, CommandMut, PossibleValue, clap};
+pub use config::Config;
 pub use gen_default_impl::generate_default;
-pub use setting::Setting;
 use utils::{gen_rust_name, to_screaming_snake_case, to_snake_case};
+
+#[derive(Clone)]
+pub(crate) struct Trace {
+    cmd_id: String,
+    mod_name: String,
+}
 
 #[cfg(feature = "clap-3")]
 pub fn generate(
     cmd: &mut clap::Command<'static>,
-    setting: Setting,
+    mut config: Config,
     w: &mut impl Write,
 ) -> std::io::Result<()> {
     let cmd = CommandMut(cmd);
-    generate_inner(cmd, w)
+    generate_inner(cmd, &mut config, w)
 }
 #[cfg(feature = "clap-4")]
 pub fn generate(
     cmd: &mut clap::Command,
-    setting: Setting,
+    config: Config,
     w: &mut impl Write,
 ) -> std::io::Result<()> {
     let cmd = CommandMut(cmd);
-    generate_inner(cmd, w)
+    generate_inner(cmd, config, w)
 }
 
-fn generate_inner(mut cmd: CommandMut, w: &mut impl Write) -> std::io::Result<()> {
+fn generate_inner(
+    mut cmd: CommandMut,
+    mut config: Config,
+    w: &mut impl Write,
+) -> std::io::Result<()> {
     cmd.build();
     let cmd = cmd.to_const();
 
     writeln!(w, "pub struct Supplements;")?;
-    generate_recur(0, "", &cmd, &[], w)
+    generate_recur(&[], "", &mut config, &cmd, &[], w)?;
+    for ig in config.not_processed_ignore() {
+        panic!("try to ignore {:?} but not found", ig);
+    }
+    Ok(())
 }
 
 #[derive(Clone)]
@@ -165,8 +179,9 @@ fn generate_args_in_cmd(
 }
 
 fn generate_flags_in_cmd(
-    level: usize,
+    prev: &[Trace],
     indent: &str,
+    config: &mut Config,
     cmd: &Command<'_>,
     global_flags: &mut Vec<GlobalFlags>,
     w: &mut impl Write,
@@ -175,6 +190,12 @@ fn generate_flags_in_cmd(
 
     for flag in utils::flags(cmd) {
         let name = flag.get_id().to_string();
+
+        // FIXME; what about global flags?
+        if config.is_ignored(prev, &name) {
+            continue;
+        }
+
         if name == "help" {
             log::debug!("skipping help flag");
             continue;
@@ -185,6 +206,7 @@ fn generate_flags_in_cmd(
         let is_const = !takes_values || !possible_values.is_empty();
         let rust_name = gen_rust_name(NameType::FLAG, &name, is_const);
         if flag.is_global_set() {
+            let level = prev.len();
             if let Some(prev_flag) = global_flags.iter().find(|f| &f.id == &name) {
                 log::info!("get existing global flag {name}");
                 let mut name = "super::".repeat(level - prev_flag.level);
@@ -271,13 +293,24 @@ fn generate_flags_in_cmd(
 fn generate_mod_name(name: &str) -> String {
     to_snake_case(&format!("{}_{}", NameType::COMMAND, name))
 }
-fn generate_subcmd_names(cmd: &Command<'_>) -> impl Iterator<Item = String> {
-    utils::non_help_subcmd(cmd).map(|c| generate_mod_name(c.get_name()))
+fn generate_subcmd_names(
+    prev: &[Trace],
+    config: &mut Config,
+    cmd: &Command<'_>,
+) -> impl Iterator<Item = String> {
+    utils::non_help_subcmd(cmd).filter_map(|c| {
+        if config.is_ignored(prev, &c.get_name()) {
+            None
+        } else {
+            Some(generate_mod_name(c.get_name()))
+        }
+    })
 }
 
 fn generate_recur(
-    level: usize,
+    prev: &[Trace],
     indent: &str,
+    config: &mut Config,
     cmd: &Command<'_>,
     global_flags: &[GlobalFlags],
     w: &mut impl Write,
@@ -285,14 +318,7 @@ fn generate_recur(
     let mut global_flags = global_flags.to_vec();
     let name = cmd.get_name();
     let description = utils::escape_help(&cmd.get_about().unwrap_or_default());
-    if level > 0 {
-        writeln!(
-            w,
-            "{indent}pub mod {} {{",
-            generate_mod_name(cmd.get_name())
-        )?;
-    } // else: it's the first time, don't need a mod
-
+    let level = prev.len();
     {
         let inner_indent = format!("    {indent}");
         let indent = if level > 0 { &inner_indent } else { indent };
@@ -304,9 +330,9 @@ fn generate_recur(
         }
         writeln!(w, "{indent}use supplements::*;")?;
 
-        let flags = generate_flags_in_cmd(level, &indent, cmd, &mut global_flags, w)?;
+        let flags = generate_flags_in_cmd(prev, &indent, config, cmd, &mut global_flags, w)?;
         let args = generate_args_in_cmd(&indent, cmd, w)?;
-        let sub_cmds: Vec<_> = generate_subcmd_names(cmd).collect();
+        let sub_cmds: Vec<_> = generate_subcmd_names(prev, config, cmd).collect();
 
         let cmd_name = NameType::COMMAND;
 
@@ -336,11 +362,18 @@ fn generate_recur(
         )?;
 
         for sub_cmd in utils::non_help_subcmd(cmd) {
-            generate_recur(level + 1, &indent, &sub_cmd, &global_flags, w)?;
+            let cmd_id = sub_cmd.get_name().to_string();
+            if config.is_ignored(&prev, &cmd_id) {
+                continue;
+            }
+
+            writeln!(w, "{indent}pub mod {} {{", generate_mod_name(&cmd_id))?;
+            let mut prev = prev.to_vec();
+            let mod_name = generate_mod_name(&cmd_id);
+            prev.push(Trace { cmd_id, mod_name });
+            generate_recur(&prev, &indent, config, &sub_cmd, &global_flags, w)?;
+            writeln!(w, "{indent}}}")?;
         }
-    }
-    if level > 0 {
-        writeln!(w, "{indent}}}")?;
     }
     Ok(())
 }

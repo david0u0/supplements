@@ -17,6 +17,8 @@ pub type Result<T = ()> = std::result::Result<T, error::Error>;
 #[cfg(any(feature = "clap-3", feature = "clap-4"))]
 mod generate;
 #[cfg(any(feature = "clap-3", feature = "clap-4"))]
+pub use generate::Config;
+#[cfg(any(feature = "clap-3", feature = "clap-4"))]
 pub use generate::generate;
 #[cfg(any(feature = "clap-3", feature = "clap-4"))]
 pub use generate::generate_default;
