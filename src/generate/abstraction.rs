@@ -2,16 +2,18 @@
 compile_error!("Only one of the clap features can be enabled");
 
 #[cfg(feature = "clap-3")]
-pub use clap3 as clap;
+use clap3 as clap;
 #[cfg(feature = "clap-4")]
-pub use clap4 as clap;
+use clap4 as clap;
+
+#[cfg(feature = "clap-3")]
+pub type ClapCommand<'a> = &'a mut clap::Command<'static>;
+#[cfg(feature = "clap-4")]
+pub type ClapCommand<'a> = &'a mut clap::Command;
 
 pub use clap::ArgAction;
 
-#[cfg(feature = "clap-3")]
-pub(crate) struct CommandMut<'a>(pub &'a mut clap::Command<'static>);
-#[cfg(feature = "clap-4")]
-pub(crate) struct CommandMut<'a>(pub &'a mut clap::Command);
+pub(crate) struct CommandMut<'a>(pub ClapCommand<'a>);
 
 #[cfg(feature = "clap-3")]
 #[derive(Clone, Copy)]
@@ -22,7 +24,7 @@ pub(crate) struct Command<'a>(&'a clap::Command);
 
 #[cfg(feature = "clap-3")]
 #[derive(Clone, Copy)]
-pub(crate) struct Arg<'a>(&'a clap::Arg<'static>);
+pub(crate) struct Arg<'a>(&'a clap::Arg<'static>, bool);
 #[cfg(feature = "clap-4")]
 #[derive(Clone, Copy)]
 pub(crate) struct Arg<'a>(&'a clap::Arg);
@@ -48,7 +50,24 @@ impl<'a> CommandMut<'a> {
 
 impl<'a> Command<'a> {
     pub fn get_arguments(&self) -> impl Iterator<Item = Arg<'a>> {
-        self.0.get_arguments().map(|a| Arg(a))
+        #[cfg(feature = "clap-3")]
+        {
+            let positional_count = self.0.get_arguments().filter(|a| a.is_positional()).count();
+            let mut cur = 0;
+            self.0.get_arguments().map(move |a| {
+                if a.is_positional() {
+                    cur += 1;
+                    let is_last_positional = cur == positional_count;
+                    Arg(a, is_last_positional)
+                } else {
+                    Arg(a, false)
+                }
+            })
+        }
+        #[cfg(feature = "clap-4")]
+        {
+            self.0.get_arguments().map(|a| Arg(a))
+        }
     }
     pub fn get_subcommands(&self) -> impl Iterator<Item = Command<'a>> {
         self.0.get_subcommands().map(|c| Command(c))
@@ -74,7 +93,14 @@ impl<'a> Arg<'a> {
     pub fn get_max_num_args(&self) -> usize {
         #[cfg(feature = "clap-3")]
         {
-            self.0.get_num_vals().unwrap_or(0)
+            if !self.takes_values() {
+                return 0;
+            }
+            // "get_num_vals" is often None even if it should take a vector,
+            // so we have to make some compromise:
+            // If this is the last arg, make it infinite long, otherwise make it 1
+            let default = if self.1 { std::usize::MAX } else { 1 };
+            self.0.get_num_vals().unwrap_or(default)
         }
         #[cfg(feature = "clap-4")]
         {

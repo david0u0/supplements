@@ -1,37 +1,22 @@
-use super::abstraction::{Command, CommandMut, clap};
+use super::abstraction::{ClapCommand, Command, CommandMut};
 use super::generate_mod_name;
 use super::utils;
 use super::{Config, NameType, Trace};
+use crate::error::GenerateError;
 use std::io::Write;
 use utils::gen_rust_name;
 
-#[cfg(feature = "clap-3")]
 pub fn generate_default(
-    cmd: &mut clap::Command<'static>,
-    config: Config,
-    w: &mut impl Write,
-) -> std::io::Result<()> {
-    let cmd = CommandMut(cmd);
-    generate_inner(cmd, config, w)
-}
-#[cfg(feature = "clap-4")]
-pub fn generate_default(
-    cmd: &mut clap::Command,
-    config: Config,
-    w: &mut impl Write,
-) -> std::io::Result<()> {
-    let cmd = CommandMut(cmd);
-    generate_inner(cmd, config, w)
-}
-
-fn generate_inner(
-    mut cmd: CommandMut,
+    cmd: ClapCommand<'_>,
     mut config: Config,
     w: &mut impl Write,
-) -> std::io::Result<()> {
+) -> Result<(), GenerateError> {
+    let mut cmd = CommandMut(cmd);
     cmd.build();
     let cmd = cmd.to_const();
-    generate_recur(&[], &[], &mut config, &cmd, w)
+
+    generate_recur(&[], &[], &mut config, &cmd, w)?;
+    config.check_unprocessed_config()
 }
 
 fn join_mod_prefix(prev: &[Trace]) -> String {

@@ -16,3 +16,15 @@ impl From<ParsedFlagError> for Error {
         Error::ParsedFlag(value)
     }
 }
+
+#[cfg(any(feature = "clap-3", feature = "clap-4"))]
+#[derive(Debug)]
+pub enum GenerateError {
+    UnprocessedConfigObj(Vec<Vec<String>>), // TODO: test this
+    IO(std::io::Error),
+}
+impl From<std::io::Error> for GenerateError {
+    fn from(value: std::io::Error) -> Self {
+        GenerateError::IO(value)
+    }
+}

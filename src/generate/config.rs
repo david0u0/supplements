@@ -1,4 +1,5 @@
 use super::Trace;
+use crate::error::GenerateError;
 use std::collections::HashMap;
 
 #[derive(Default, Clone)]
@@ -23,8 +24,7 @@ impl Config {
             false
         }
     }
-
-    pub(crate) fn not_processed_ignore(&self) -> impl Iterator<Item = &[String]> {
+    pub(crate) fn unprocessed_ignore(&self) -> impl Iterator<Item = &[String]> {
         self.ignore.iter().filter_map(|(key, processed)| {
             if *processed {
                 None
@@ -32,5 +32,16 @@ impl Config {
                 Some(key.as_slice())
             }
         })
+    }
+
+    pub(crate) fn check_unprocessed_config(&self) -> Result<(), GenerateError> {
+        let mut it = self.unprocessed_ignore().peekable();
+        if it.peek().is_none() {
+            return Ok(());
+        }
+
+        Err(GenerateError::UnprocessedConfigObj(
+            it.map(|x| x.to_vec()).collect(),
+        ))
     }
 }

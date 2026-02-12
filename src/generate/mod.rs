@@ -1,3 +1,4 @@
+use crate::error::GenerateError;
 use std::borrow::Cow;
 use std::io::Write;
 
@@ -5,7 +6,7 @@ mod abstraction;
 mod config;
 mod gen_default_impl;
 mod utils;
-use abstraction::{ArgAction, Command, CommandMut, PossibleValue, clap};
+use abstraction::{ArgAction, ClapCommand, Command, CommandMut, PossibleValue};
 pub use config::Config;
 pub use gen_default_impl::generate_default;
 use utils::{gen_rust_name, to_screaming_snake_case, to_snake_case};
@@ -16,39 +17,18 @@ pub(crate) struct Trace {
     mod_name: String,
 }
 
-#[cfg(feature = "clap-3")]
 pub fn generate(
-    cmd: &mut clap::Command<'static>,
+    cmd: ClapCommand<'_>,
     mut config: Config,
     w: &mut impl Write,
-) -> std::io::Result<()> {
-    let cmd = CommandMut(cmd);
-    generate_inner(cmd, &mut config, w)
-}
-#[cfg(feature = "clap-4")]
-pub fn generate(
-    cmd: &mut clap::Command,
-    config: Config,
-    w: &mut impl Write,
-) -> std::io::Result<()> {
-    let cmd = CommandMut(cmd);
-    generate_inner(cmd, config, w)
-}
-
-fn generate_inner(
-    mut cmd: CommandMut,
-    mut config: Config,
-    w: &mut impl Write,
-) -> std::io::Result<()> {
+) -> Result<(), GenerateError> {
+    let mut cmd = CommandMut(cmd);
     cmd.build();
     let cmd = cmd.to_const();
 
     writeln!(w, "pub struct Supplements;")?;
     generate_recur(&[], "", &mut config, &cmd, &[], w)?;
-    for ig in config.not_processed_ignore() {
-        panic!("try to ignore {:?} but not found", ig);
-    }
-    Ok(())
+    config.check_unprocessed_config()
 }
 
 #[derive(Clone)]
